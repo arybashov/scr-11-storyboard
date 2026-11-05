@@ -63,3 +63,29 @@ window.EPISODES = [
     ]
   }
 ];
+
+// References to the unchanged screenplay. Optional excerpts are exact substrings.
+window.SHOT_SOURCES = {
+  T01: [{paragraph:183, excerpt:'Из такси выскакивает ОКСАНА.'}],
+  T02: [{paragraph:183, excerpt:'С ненавистью хлопает дверью, её смартфон выскакивает из руки'}],
+  T03: [{paragraph:183, excerpt:'и отлетает по асфальту на проезжую часть.'}],
+  T04: [{paragraph:183, excerpt:'ОКСАНА едва успевает его выхватить из-под колёс огромного самосвала.'}],
+  T05: [{paragraph:184}],
+  T06: [{paragraph:185},{paragraph:186}],
+  A01: [{paragraph:186},{paragraph:187}],
+  A02: [{paragraph:187}],
+  A03: [{paragraph:188}],
+  A04: [{paragraph:189}],
+  A05: [{paragraph:190},{paragraph:191},{paragraph:192}],
+  B01: [{paragraph:198},{paragraph:199}],
+  B02: [{paragraph:201},{paragraph:202},{paragraph:203}],
+  B03: [{paragraph:204},{paragraph:205}],
+  B04: [{paragraph:206}],
+  B05: [{paragraph:207}],
+  C01: [{paragraph:214},{paragraph:215},{paragraph:216}],
+  C02: [{paragraph:217},{paragraph:218},{paragraph:219},{paragraph:220},{paragraph:221}],
+  C03: [{paragraph:222},{paragraph:223},{paragraph:224},{paragraph:225}],
+  C04: [{paragraph:230},{paragraph:231}],
+  C05: [{paragraph:232}],
+  C06: [{paragraph:233}]
+};

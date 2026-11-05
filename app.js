@@ -81,6 +81,19 @@ function renderEpisodes() {
 }
 const shotData=id=>gallery.shots[id] || {images:[],current:null};
 const mediaUrl=path=>`${apiBase}/${path.replace(/^\//,'')}`;
+function shotSourceMarkup(shot){
+  if(!screenplay)return '<div class="shot-source"><span class="source-label">Сценарий</span><p>Загрузка авторского текста…</p></div>';
+  const refs=window.SHOT_SOURCES[shot.id]||[];
+  const pieces=refs.map(ref=>{
+    const scene=screenplay.scenes.find(s=>s.paragraphs.some(p=>p.id===ref.paragraph));
+    const paragraph=scene?.paragraphs.find(p=>p.id===ref.paragraph);
+    if(!paragraph)return null;
+    const text=ref.excerpt || (paragraph.text.startsWith(scene.title)?paragraph.text.slice(scene.title.length).trim():paragraph.text.trim());
+    return {scene:scene.id,text};
+  }).filter(Boolean);
+  if(!pieces.length)return '';
+  return `<section class="shot-source" aria-label="Текст сценария для кадра ${shot.id}"><div class="source-heading"><span class="source-label">Текст сценария</span><a href="#script/${pieces[0].scene}">Сцена ${String(pieces[0].scene).padStart(2,'0')} ↗</a></div><blockquote>${pieces.map(p=>`<p>${esc(p.text)}</p>`).join('')}</blockquote></section>`;
+}
 function imageMarkup(shot, version) { return version ? `<img src="${esc(mediaUrl(version.thumbnail))}" alt="${esc(shot.id+' — '+shot.title)}" loading="lazy">` : sketch(shot.art,shot.title); }
 function renderBoard() {
   $('#board-title').textContent=currentEpisode.title;
@@ -92,7 +105,7 @@ function renderBoard() {
   $('#shot-grid').innerHTML=currentEpisode.shots.map((shot,index)=>{
     const start=time;time+=shot.duration;
     const record=shotData(shot.id), active=record.images.find(i=>i.id===record.current);
-    return `<article class="shot-card" data-shot="${shot.id}"><button class="shot-image" data-open-shot="${index}" aria-label="Открыть кадр ${shot.id}: ${esc(shot.title)}">${imageMarkup(shot,active)}<span class="shot-id">${shot.id}</span><span class="shot-expand">↗</span></button><div class="shot-body"><div class="shot-meta"><span>${String(start).padStart(2,'0')}–${String(time).padStart(2,'0')} СЕК</span><span>${esc(shot.size.toUpperCase())}</span></div><h3>${esc(shot.title)}</h3><p>${esc(shot.action)}</p><dl><dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd></dl></div><div class="shot-actions"><span class="version-count">${record.images.length ? `ВЕРСИЙ: ${record.images.length}` : 'СХЕМА · НЕТ ЗАГРУЗОК'}</span><button data-upload="${shot.id}">+ Загрузить</button></div></article>`;
+    return `<article class="shot-card" data-shot="${shot.id}"><button class="shot-image" data-open-shot="${index}" aria-label="Открыть кадр ${shot.id}: ${esc(shot.title)}">${imageMarkup(shot,active)}<span class="shot-id">${shot.id}</span><span class="shot-expand">↗</span></button><div class="shot-body"><div class="shot-meta"><span>${String(start).padStart(2,'0')}–${String(time).padStart(2,'0')} СЕК</span><span>${esc(shot.size.toUpperCase())}</span></div><h3>${esc(shot.title)}</h3>${shotSourceMarkup(shot)}<span class="source-label staging-label">Постановочное описание</span><p>${esc(shot.action)}</p><dl><dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd></dl></div><div class="shot-actions"><span class="version-count">${record.images.length ? `ВЕРСИЙ: ${record.images.length}` : 'СХЕМА · НЕТ ЗАГРУЗОК'}</span><button data-upload="${shot.id}">+ Загрузить</button></div></article>`;
   }).join('');
   renderTimeline();
 }
@@ -102,6 +115,7 @@ function route() {
   const changedView = lastView !== valid; lastView = valid;
   document.body.classList.toggle('board-open',valid==='board');
   pauseAnimatic();
+  if(valid!=='board')for(const dialog of [$('#shot-dialog'),$('#animatic-dialog')])if(dialog.open)dialog.close();
   $$('.view').forEach(el=>{el.hidden=el.id!==`view-${valid}`;});
   $$('.main-nav a').forEach(a=>{a.classList.toggle('active',a.dataset.view===valid);if(a.dataset.view===valid)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   if(valid==='board') { currentEpisode=episodes.find(e=>e.id===id)||episodes[0];renderBoard();refreshGallery(); }
@@ -167,6 +181,7 @@ function openShot(index, keepVersion=false) {
   $('#dialog-image').innerHTML=imageMarkup(shot,version);
   $('#dialog-title').textContent=shot.title;
   $('#dialog-action').textContent=shot.action;
+  $('#dialog-script').innerHTML=shotSourceMarkup(shot);
   $('#dialog-details').innerHTML=`<dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd><dt>Задача кадра</dt><dd>${esc(shot.purpose)}</dd><dt>Длительность</dt><dd>~ ${shot.duration} сек</dd>`;
   $('#dialog-versions').innerHTML=`<button class="scheme-version ${!version?'selected':''}" data-version="" aria-label="Показать схему">Схема</button>`+record.images.map((v,i)=>`<button class="${v.id===selectedVersion?'selected':''}" data-version="${v.id}" aria-label="Версия ${i+1}, ${esc(v.author)}"><img src="${esc(mediaUrl(v.thumbnail))}" alt="Версия ${i+1}"></button>`).join('');
   $('#dialog-version-info').innerHTML=version ? `${esc(version.author)} · ${new Date(version.createdAt).toLocaleString('ru-RU')} · ${version.width} × ${version.height}${version.note?'<br>'+esc(version.note):''}<br><a href="${esc(mediaUrl(version.original))}" target="_blank" rel="noopener">Открыть оригинал ↗</a> ${record.current===version.id?'<span> · Основной кадр</span>':`<button id="make-current" ${session?'':'hidden'}>Сделать основным</button>`}` : 'Композиционная схема. Загрузите рисунок или референс через кнопку на карточке.';
