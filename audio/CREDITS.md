@@ -18,7 +18,7 @@
 Изменения: Excerpt 0–0.57 s; peak normalized to -5 dBFS, 5 ms edge fades, MP3 160 kbps.
 
 ## Проезд дизельного грузовика
-Автор: THE_bizniss. Источник: https://freesound.org/people/THE_bizniss/sounds/37929/
+Оригинальное название: diesel truck pass.wav. Автор: THE_bizniss. Источник: https://freesound.org/people/THE_bizniss/sounds/37929/
 Лицензия: CC BY 3.0 — http://creativecommons.org/licenses/by/3.0/
 Изменения: Excerpt 0–6.94 s; peak normalized to -8 dBFS, 5 ms edge fades, MP3 160 kbps.
 
