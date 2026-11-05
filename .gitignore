@@ -1,0 +1,8 @@
+__pycache__/
+*.log
+.qa/
+node_modules/
+.env
+.env.*
+!server/.env.example
+uploads/

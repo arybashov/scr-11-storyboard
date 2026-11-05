@@ -1,0 +1,40 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import sharp from 'sharp';
+import {createBoardServer} from './server.mjs';
+
+test('team uploads persist, reject invalid access/files, and share chosen versions',async()=>{
+  const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'kino-test-'));
+  const options={dataDir,secret:'test-only-secret-'.repeat(4),accessCode:'test-project-code',origins:'https://arybashov.github.io'};
+  let server=createBoardServer(options);await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  let base=`http://127.0.0.1:${server.address().port}`;
+  const call=(p,o={})=>fetch(base+p,o);
+  try{
+    assert.equal((await call('/gallery')).status,200);
+    assert.equal((await call('/gallery',{headers:{Origin:'https://untrusted.invalid'}})).status,403);
+    assert.equal((await call('/shots/A01/images',{method:'POST',body:'invalid'})).status,401);
+    assert.equal((await call('/session',{method:'POST',body:JSON.stringify({name:'Artist',code:'bad'})})).status,401);
+    const login=await call('/session',{method:'POST',body:JSON.stringify({name:'Художник',code:options.accessCode})});
+    assert.equal(login.status,200);const {token}=await login.json();
+    const headers={Authorization:`Bearer ${token}`,'Content-Type':'image/png','X-File-Name':encodeURIComponent('кадр.png'),'X-Image-Note':encodeURIComponent('Первый вариант')};
+    assert.equal((await call('/shots/A01/images',{method:'POST',headers,body:Buffer.from('<svg/>')})).status,415);
+    assert.equal((await call('/shots/Z99/images',{method:'POST',headers,body:'bad'})).status,404);
+    const bytes=await sharp({create:{width:80,height:45,channels:3,background:'#88aa66'}}).png().toBuffer();
+    const uploaded=await call('/shots/A01/images',{method:'POST',headers,body:bytes});
+    assert.equal(uploaded.status,201);const first=(await uploaded.json()).image;
+    const second=(await (await call('/shots/A01/images',{method:'POST',headers,body:bytes})).json()).image;
+    let board=await(await call('/gallery')).json();assert.equal(board.shots.A01.images.length,2);assert.equal(board.shots.A01.current,first.id);
+    assert.equal(board.shots.A01.images[0].author,'Художник');assert.equal(board.shots.A01.images[0].note,'Первый вариант');
+    assert.equal((await call('/shots/A01/current',{method:'PATCH',headers,body:JSON.stringify({id:'missing'})})).status,404);
+    assert.equal((await call('/shots/A01/current',{method:'PATCH',headers,body:JSON.stringify({id:second.id})})).status,200);
+    const imageResponse=await call('/'+first.original);assert.equal(imageResponse.headers.get('content-type'),'image/png');assert.deepEqual(Buffer.from(await imageResponse.arrayBuffer()),bytes);
+    const preflight=await call('/shots/A01/images',{method:'OPTIONS',headers:{Origin:'https://arybashov.github.io'}});assert.equal(preflight.status,204);assert.equal(preflight.headers.get('access-control-allow-origin'),'https://arybashov.github.io');
+    await new Promise(r=>server.close(r));server=createBoardServer(options);await new Promise(r=>server.listen(0,'127.0.0.1',r));base=`http://127.0.0.1:${server.address().port}`;
+    board=await(await call('/gallery')).json();assert.equal(board.shots.A01.images.length,2);assert.equal(board.shots.A01.current,second.id);
+    assert.equal((await call('/shots/A01/images',{method:'POST',headers,body:bytes})).status,201);
+    console.log('Validated: authentication, CORS, file decoding, version selection, original bytes, persistence across restart');
+  }finally{await new Promise(r=>server.close(r));fs.rmSync(dataDir,{recursive:true,force:true});}
+});

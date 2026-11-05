@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#141917">
+  <meta name="description" content="Подземный переход — сценарий, выбор эпизода для пилота и рабочая раскадровка фильма SCR-11.">
+  <title>Подземный переход — сценарий и раскадровка</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="episodes.js" defer></script>
+  <script src="config.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">К содержанию</a>
+  <header class="topbar">
+    <a class="brand" href="#script" aria-label="Подземный переход — начало"><span class="brand-mark" aria-hidden="true">↘</span> KINO <span class="brand-divider">/</span> <span class="mono">SCR—11</span></a>
+    <span class="workspace-label">РАБОЧИЙ АЛЬБОМ ФИЛЬМА</span>
+    <a class="source-link" href="source/SCR-11-Underground-Crossing.docx" download>Исходник DOCX <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <section class="hero" aria-labelledby="film-title">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="status-dot"></span> ПОДГОТОВКА ПИЛОТА <span class="muted">/ 01</span></p>
+      <h1 id="film-title">ПОДЗЕМНЫЙ<br><span>ПЕРЕХОД</span></h1>
+      <p class="hero-description">Сначала история. Затем эпизод. Затем кадр.<br>Сценарий и первые варианты раскадровки в одном месте.</p>
+      <div class="hero-meta"><span>SUMMER NIGHT PRODUCTION</span><span>СЦЕНАРИЙ · 2022</span></div>
+    </div>
+    <div class="hero-visual"><div id="hero-sketch" aria-hidden="true"></div><span class="sketch-caption">ЭСКИЗ ПРОСТРАНСТВА <span>НЕ ФИНАЛЬНЫЙ ДИЗАЙН</span></span></div>
+  </section>
+
+  <nav class="main-nav" aria-label="Разделы альбома">
+    <a href="#script" data-view="script"><span>01</span> Сценарий <small id="scene-count">21 сцена</small></a>
+    <a href="#episodes" data-view="episodes"><span>02</span> Эпизоды <small>4 эпизода</small></a>
+    <a href="#board/taxi" data-view="board"><span>03</span> Раскадровка <small>22 кадра</small></a>
+  </nav>
+
+  <main id="main" tabindex="-1">
+    <section id="view-script" class="view">
+      <div class="section-heading"><div><p class="eyebrow">ПЕРВОИСТОЧНИК</p><h2>Полный сценарий</h2></div><p class="section-aside">Текст из исходного DOCX.<br>Авторские формулировки сохранены.</p></div>
+      <div class="script-tools"><label class="search-box"><span aria-hidden="true">⌕</span><input type="search" id="script-search" placeholder="Найти в сценарии…" aria-label="Поиск по сценарию"></label><span id="search-result" class="mono" role="status" aria-live="polite">21 сцена · 282 абзаца</span></div>
+      <div class="script-layout">
+        <aside class="scene-sidebar"><p class="eyebrow">СОДЕРЖАНИЕ <span>↓</span></p><nav id="scene-nav" aria-label="Сцены сценария"></nav></aside>
+        <article class="screenplay" aria-label="Авторский текст сценария"><div class="paper-header"><span>SCR—11 / ORIGINAL</span><span>2022</span></div><div id="script-content"><p>Загрузка сценария…</p></div><div class="paper-footer">КОНЕЦ СЦЕНАРИЯ <span>SUMMER NIGHT PRODUCTION</span></div></article>
+      </div>
+    </section>
+
+    <section id="view-episodes" class="view" hidden>
+      <div class="section-heading"><div><p class="eyebrow">ПЕРВЫЙ ПИЛОТ ВЫБРАН</p><h2>Начинаем с такси</h2></div><p class="section-aside">Эпизоды выбраны из сценария.<br>Длительности — рабочие оценки.</p></div>
+      <p class="section-intro">Для начала выбран «Хлопок дверью»: выход из такси, падение телефона и самосвал. Ещё три эпизода сохранены как варианты для следующих этапов.</p>
+      <div id="episode-list" class="episode-list"></div>
+      <div class="editor-note"><span class="note-mark">↳</span><div><h3>Что стоит решить до рисунков</h3><p>Утвердить расположение лестниц, направление движения стен и точку зрения камеры. Схемы ниже показывают композицию и действие; внешность Оксаны, архитектура и визуальный стиль ещё не утверждены.</p></div></div>
+    </section>
+
+    <section id="view-board" class="view" hidden>
+      <div class="section-heading"><div><p class="eyebrow">ЧЕРНОВАЯ РАСКАДРОВКА</p><h2 id="board-title">Первый сдвиг</h2></div><button class="quiet-button" id="print-board">Печать / PDF <span aria-hidden="true">↗</span></button></div>
+      <div class="team-bar"><div><strong>Общая доска команды</strong><p id="team-message">Изображения и версии хранятся на сервере. Можно перетащить файл прямо на кадр.</p><span class="team-status" id="sync-status" role="status">Подключение…</span></div><button id="team-login">Войти для загрузки</button></div>
+      <div class="board-controls"><div id="episode-selector" class="episode-selector" aria-label="Эпизод раскадровки"></div><span class="mono" id="board-total"></span></div>
+      <div class="board-summary"><p id="board-summary"></p><a id="board-source" href="#script/14">Фрагмент сценария ↗</a></div>
+      <p class="board-disclaimer">Схемы композиции · черновая постановочная версия · хронометраж ориентировочный</p>
+      <div id="shot-grid" class="shot-grid"></div>
+      <div class="editor-note"><span class="note-mark">↳</span><div><h3>Следующий проход</h3><p>После выбора эпизода заменим схемы рисунками: уточним мизансцены, крупности, ось съёмки и движение камеры. Технология производства пока открыта.</p></div></div>
+    </section>
+  </main>
+
+  <footer class="footer"><span>KINO <span class="muted">/</span> ПОДЗЕМНЫЙ ПЕРЕХОД</span><span>Рабочая версия · 05.11.2026</span><a href="#script">К сценарию ↑</a></footer>
+
+  <dialog id="shot-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-top"><span class="eyebrow" id="dialog-counter"></span><button id="dialog-close" aria-label="Закрыть кадр">✕</button></div>
+    <div id="dialog-image"></div>
+    <div id="dialog-versions" class="versions" aria-label="Версии изображения"></div>
+    <div id="dialog-version-info" class="version-info"></div>
+    <div class="dialog-body"><h2 id="dialog-title"></h2><p id="dialog-action"></p><dl id="dialog-details"></dl></div>
+    <div class="dialog-nav"><button id="dialog-prev">← Предыдущий</button><button id="dialog-next">Следующий →</button></div>
+  </dialog>
+  <dialog id="login-dialog" class="form-dialog" aria-labelledby="login-title">
+    <div class="dialog-top"><span class="eyebrow">ДОСТУП К ЗАГРУЗКЕ</span><button type="button" data-close="login-dialog" aria-label="Закрыть вход">✕</button></div>
+    <form id="login-form"><h2 id="login-title">Войти в команду</h2><p>Введите своё имя и общий код проекта. Имя будет указано рядом с вашими изображениями.</p><label for="team-name">Ваше имя</label><input id="team-name" name="name" required minlength="2" maxlength="60" autocomplete="name"><label for="team-code">Код проекта</label><input id="team-code" name="code" type="password" required autocomplete="current-password"><p id="login-message" class="form-message" role="status"></p><button type="submit" class="primary">Войти</button></form>
+  </dialog>
+  <dialog id="upload-dialog" class="form-dialog" aria-labelledby="upload-title">
+    <div class="dialog-top"><span id="upload-shot-label" class="eyebrow"></span><button type="button" data-close="upload-dialog" aria-label="Закрыть загрузку">✕</button></div>
+    <form id="upload-form"><h2 id="upload-title">Добавить изображения</h2><p>Файлы сохранятся в общей галерее кадра. Первая загрузка станет основной; следующие добавятся как версии.</p><label for="upload-files">Изображения</label><input id="upload-files" type="file" accept="image/jpeg,image/png,image/webp" multiple required><p class="upload-hint">JPG, PNG, WebP · до 15 МБ на файл · оригинал сохраняется</p><label for="upload-note">Комментарий к версии</label><textarea id="upload-note" maxlength="500" placeholder="Например: вариант света, крупность, что изменилось…"></textarea><p id="upload-message" class="form-message" role="status" aria-live="polite"></p><button type="submit" class="primary">Загрузить в общую доску</button></form>
+  </dialog>
+  <noscript><p class="noscript">Для интерактивного альбома нужен JavaScript. <a href="source/SCR-11-Underground-Crossing.docx">Скачать полный сценарий DOCX</a>.</p></noscript>
+</body>
+</html>

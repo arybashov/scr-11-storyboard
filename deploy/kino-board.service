@@ -1,0 +1,24 @@
+[Unit]
+Description=KINO shared storyboard API
+After=network.target
+
+[Service]
+Type=simple
+User=kino-board
+Group=kino-board
+WorkingDirectory=/opt/kino-board
+EnvironmentFile=/etc/kino-board/environment
+ExecStart=/usr/bin/node /opt/kino-board/server.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/kino-board
+MemoryMax=256M
+CPUQuota=50%
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
