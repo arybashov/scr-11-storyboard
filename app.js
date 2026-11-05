@@ -62,7 +62,7 @@ function highlighted(text, query) {
 function sceneName(scene) { return scene.title.replace(/^(ИНТ\.|ЭКСТ\.)\s*/, '').replace(/\.$/,'').toLocaleLowerCase('ru'); }
 function renderScript(query = '') {
   const beats=window.PILOT_BEATS.map((text,index)=>({text,number:index+1})).filter(b=>b.text.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru')));
-  $('#search-result').textContent=query?`Найдено событий: ${beats.length}`:'1 эпизод · 11 событий · 11 кадров';
+  $('#search-result').textContent=query?`Найдено событий: ${beats.length}`:'1 эпизод · 11 событий · 12 кадров';
   $('#scene-nav').innerHTML=beats.map(b=>`<a href="#script/beat-${b.number}"><span>${String(b.number).padStart(2,'0')}</span>${esc(b.text.slice(0,58))}…</a>`).join('');
   $('#script-content').innerHTML=`<section id="scene-13"><div class="script-title"><h3>ХЛОПОК ДВЕРЬЮ</h3><p>ЭКСТ. ШОССЕ — НОЧЬ. СИЛЬНЫЙ ДОЖДЬ.<br>Авторская последовательность · редакция 05.11.2026</p></div>${beats.map(b=>`<section class="script-scene" id="beat-${b.number}"><span class="scene-number">СОБЫТИЕ ${String(b.number).padStart(2,'0')}</span><p>${highlighted(b.text,query)}</p></section>`).join('')||'<p class="no-results">Ничего не найдено.</p>'}</section>`;
 }
