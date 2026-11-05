@@ -83,9 +83,9 @@ function renderBoard() {
   $('#episode-selector').innerHTML=episodes.map(ep=>`<button data-episode="${ep.id}" class="${ep.id===currentEpisode.id?'active':''}" aria-pressed="${ep.id===currentEpisode.id}"><span>${ep.code}</span>${esc(ep.title)}</button>`).join('');
   let time=0;
   $('#shot-grid').innerHTML=currentEpisode.shots.map((shot,index)=>{
-    const start=time;time+=shot.duration;
+    const start=time;time=Math.round((time+shot.duration)*100)/100;
     const record=shotData(shot.id), active=record.images.find(i=>i.id===record.current);
-    return `<article class="shot-card" data-shot="${shot.id}"><button class="shot-image" data-open-shot="${index}" aria-label="Открыть кадр ${shot.id}: ${esc(shot.title)}">${imageMarkup(shot,active)}<span class="shot-id">${shot.id}</span><span class="shot-expand">↗</span></button><div class="shot-body"><div class="shot-meta"><span>${String(start).padStart(2,'0')}–${String(time).padStart(2,'0')} СЕК</span><span>${esc(shot.size.toUpperCase())}</span></div><h3>${esc(shot.title)}</h3>${shotSourceMarkup(shot)}<span class="source-label staging-label">Постановочное описание</span><p>${esc(shot.action)}</p><dl><dt>Крупность</dt><dd>${esc(shot.size)}</dd><dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd></dl></div><div class="shot-actions"><span class="version-count">${record.images.length ? `ВЕРСИЙ: ${record.images.length}` : 'СХЕМА · НЕТ ЗАГРУЗОК'}</span><button data-upload="${shot.id}">+ Загрузить</button></div></article>`;
+    return `<article class="shot-card" data-shot="${shot.id}"><button class="shot-image" data-open-shot="${index}" aria-label="Открыть кадр ${shot.id}: ${esc(shot.title)}">${imageMarkup(shot,active)}<span class="shot-id">${shot.id}</span><span class="shot-expand">↗</span></button><div class="shot-body"><div class="shot-meta"><span>${start.toLocaleString('ru-RU')}–${time.toLocaleString('ru-RU')} СЕК</span><span>${esc(shot.size.toUpperCase())}</span></div><h3>${esc(shot.title)}</h3>${shotSourceMarkup(shot)}<span class="source-label staging-label">Постановочное описание</span><p>${esc(shot.action)}</p><dl><dt>Крупность</dt><dd>${esc(shot.size)}</dd><dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd></dl></div><div class="shot-actions"><span class="version-count">${record.images.length ? `ВЕРСИЙ: ${record.images.length}` : 'СХЕМА · НЕТ ЗАГРУЗОК'}</span><button data-upload="${shot.id}">+ Загрузить</button></div></article>`;
   }).join('');
   renderTimeline();
 }
@@ -118,7 +118,7 @@ function renderTimeline(){
   for(const range of [$('#dock-seek'),$('#player-seek')])range.max=total;
   let start=0;
   const strip=currentEpisode.shots.map(shot=>{
-    const pos=start;start+=shot.duration;const record=shotData(shot.id),version=record.images.find(v=>v.id===record.current);
+    const pos=start;start=Math.round((start+shot.duration)*100)/100;const record=shotData(shot.id),version=record.images.find(v=>v.id===record.current);
     return `<button class="timeline-clip" data-time="${pos}" data-clip-id="${shot.id}" style="flex:${shot.duration}" aria-label="${shot.id}: ${esc(shot.title)}, с ${pos} секунды, ${shot.duration} секунд"><span class="clip-picture">${imageMarkup(shot,version)}</span><span class="clip-label">${shot.id}<span>${shot.duration}с</span></span></button>`;
   }).join('');
   $('#dock-strip').innerHTML=strip;$('#player-strip').innerHTML=strip;updateAnimatic(true);
