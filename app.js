@@ -67,7 +67,7 @@ function renderScript(query = '') {
   $('#script-content').innerHTML=`<section id="scene-13"><div class="script-title"><h3>ХЛОПОК ДВЕРЬЮ</h3><p>ЭКСТ. ШОССЕ — НОЧЬ. СИЛЬНЫЙ ДОЖДЬ.<br>Авторская последовательность · редакция 05.11.2026</p></div>${beats.map(b=>`<section class="script-scene" id="beat-${b.number}"><span class="scene-number">СОБЫТИЕ ${String(b.number).padStart(2,'0')}</span><p>${highlighted(b.text,query)}</p></section>`).join('')||'<p class="no-results">Ничего не найдено.</p>'}</section>`;
 }
 function renderEpisodes() {
-  $('#episode-list').innerHTML=episodes.map(ep=>`<article class="episode-card"><div class="episode-art"><div class="episode-art-header"><span class="episode-code">${ep.code}</span><span>ЭПИЗОД / ${ep.scenes}</span></div>${sketch(ep.shots[2].art,ep.title)}<div class="episode-art-footer"><span>~ ${ep.duration} СЕК</span><span>${ep.shots.length} КАДРОВ</span><span>16:9</span></div></div><div class="episode-copy"><span class="tag">${esc(ep.tag)}</span><h3>${esc(ep.title)}</h3><p>${esc(ep.logline)}</p><dl><dt>Почему он</dt><dd>${esc(ep.why)}</dd><dt>В работе</dt><dd>${esc(ep.challenge)}</dd></dl><div class="episode-actions"><a class="button-primary" href="#board/${ep.id}">Открыть кадры <span>↗</span></a><a href="#script/${ep.sourceScene}">Читать сцену →</a></div></div></article>`).join('');
+  $('#episode-list').innerHTML=episodes.map(ep=>`<article class="episode-card"><div class="episode-art"><div class="episode-art-header"><span class="episode-code">${ep.code}</span><span>ЭПИЗОД / ${ep.scenes}</span></div>${sketch(ep.shots[2].art,ep.title)}<div class="episode-art-footer"><span>~ ${ep.duration.toLocaleString('ru-RU')} СЕК</span><span>${ep.shots.length} КАДРОВ</span><span>16:9</span></div></div><div class="episode-copy"><span class="tag">${esc(ep.tag)}</span><h3>${esc(ep.title)}</h3><p>${esc(ep.logline)}</p><dl><dt>Почему он</dt><dd>${esc(ep.why)}</dd><dt>В работе</dt><dd>${esc(ep.challenge)}</dd></dl><div class="episode-actions"><a class="button-primary" href="#board/${ep.id}">Открыть кадры <span>↗</span></a><a href="#script/${ep.sourceScene}">Читать сцену →</a></div></div></article>`).join('');
 }
 const shotData=id=>gallery.shots[id] || {images:[],current:null};
 const mediaUrl=path=>`${apiBase}/${path.replace(/^\//,'')}`;
@@ -91,7 +91,7 @@ function boardImage(shot){
 function imageMarkup(shot, version) { return version ? `<img src="${esc(mediaUrl(version.thumbnail))}" alt="${esc(shot.id+' — '+shot.title)}" loading="lazy">` : sketch(shot.art,shot.title); }
 function renderBoard() {
   $('#board-title').textContent=currentEpisode.title;
-  $('#board-total').textContent=`${currentEpisode.shots.length} кадров / ~ ${currentEpisode.duration} сек`;
+  $('#board-total').textContent=`${currentEpisode.shots.length} кадров / ~ ${currentEpisode.duration.toLocaleString('ru-RU')} сек`;
   $('#board-summary').textContent=currentEpisode.adaptation;
   $('#board-source').href=`#script/${currentEpisode.sourceScene}`;
   $('#episode-selector').innerHTML=episodes.map(ep=>`<button data-episode="${ep.id}" class="${ep.id===currentEpisode.id?'active':''}" aria-pressed="${ep.id===currentEpisode.id}"><span>${ep.code}</span>${esc(ep.title)}</button>`).join('');
@@ -122,7 +122,7 @@ function route() {
     requestAnimationFrame(()=>document.getElementById(id.startsWith('beat-')?id:`scene-${id}`)?.scrollIntoView({behavior:'instant'}));
   }
 }
-function timecode(seconds){const whole=Math.floor(seconds);return `${String(Math.floor(whole/60)).padStart(2,'0')}:${String(whole%60).padStart(2,'0')}`;}
+function timecode(seconds){const ticks=Math.floor((seconds+1e-8)*10),whole=Math.floor(ticks/10);return `${String(Math.floor(whole/60)).padStart(2,'0')}:${String(whole%60).padStart(2,'0')}${ticks%10?','+ticks%10:''}`;}
 function shotAt(time){let start=0;for(let i=0;i<currentEpisode.shots.length;i++){const shot=currentEpisode.shots[i];if(time<start+shot.duration||i===currentEpisode.shots.length-1)return{shot,index:i,start};start=Math.round((start+shot.duration)*100)/100;}}
 function renderTimeline(){
   if(animatic.episode!==currentEpisode.id){pauseAnimatic();animatic.time=0;animatic.episode=currentEpisode.id;animatic.shown=null;}
