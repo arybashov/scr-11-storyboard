@@ -4,6 +4,8 @@ import path from 'node:path';
 import {createHmac, timingSafeEqual, randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import sharp from 'sharp';
+import {validateTimeline} from './timeline-model.mjs';
+const soundLibrary=JSON.parse(fs.readFileSync(new URL('./sound-library.json',import.meta.url),'utf8'));
 
 const MAX_FILE = 15 * 1024 * 1024;
 const MAX_STORAGE = Number(process.env.MAX_STORAGE_BYTES || 1024 * 1024 * 1024);
@@ -52,7 +54,7 @@ export function createBoardServer(options = {}) {
       req.on('error',reject);
     });
   }
-  async function jsonBody(req){try{return JSON.parse(await body(req,8192));}catch(error){if(error.status)throw error;throw Object.assign(new Error('Некорректный JSON'),{status:400});}}
+  async function jsonBody(req,limit=8192){try{return JSON.parse(await body(req,limit));}catch(error){if(error.status)throw error;throw Object.assign(new Error('Некорректный JSON'),{status:400});}}
   const server=http.createServer(async(req,res)=>{
     const origin=req.headers.origin;
     res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Cache-Control','no-store');
@@ -64,6 +66,20 @@ export function createBoardServer(options = {}) {
     try{
       if(req.method==='GET'&&url.pathname==='/health'){reply(200,{ok:true,service:'kino-storyboard',revision:index.revision});return;}
       if(req.method==='GET'&&url.pathname==='/gallery'){reply(200,index);return;}
+      if(url.pathname==='/timeline/taxi'){
+        if(req.method==='GET'){reply(200,index.timeline||{revision:0,state:null});return;}
+        if(req.method==='PATCH'){
+          const auth=authenticate(req);
+          if(!auth){req.resume();reply(401,{error:'Войдите по коду проекта, чтобы сохранить монтаж для команды'});return;}
+          const data=await jsonBody(req,65536);
+          let state;try{state=validateTimeline(data.state,soundLibrary);}catch(error){reply(400,{error:error.message});return;}
+          if(data.revision!==(index.timeline?.revision||0)){reply(409,{error:'Монтаж уже изменён другим участником. Ваш черновик сохранён в браузере. Загрузите общую версию перед сохранением.',revision:index.timeline?.revision||0});return;}
+          const previous=index.timeline,previousRevision=index.revision;
+          index.timeline={revision:(previous?.revision||0)+1,author:auth.name,updatedAt:new Date().toISOString(),state};
+          try{save();}catch(error){index.timeline=previous;index.revision=previousRevision;throw error;}
+          reply(200,index.timeline);return;
+        }
+      }
       if(req.method==='GET'&&/^\/media\/[a-f0-9-]+(?:-thumb)?\.(jpg|png|webp)$/.test(url.pathname)){
         const filename=path.basename(url.pathname),file=path.join(directory,'media',filename);
         if(!fs.existsSync(file)){reply(404,{error:'Изображение не найдено'});return;}

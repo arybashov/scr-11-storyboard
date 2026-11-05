@@ -12,7 +12,7 @@ let assetFilter='Все', currentAsset=null, assetVersion=null;
 const assets=window.ASSETS;
 const assetData=id=>gallery.assets?.[id] || {images:[],current:null};
 const uploadPath=id=>assets.some(a=>a.id===id)?'assets':'shots';
-const animatic = {time:0,playing:false,last:0,frame:null,episode:null,shown:null};
+const animatic = {time:0,playing:false,last:0,frame:null,episode:null,shown:null,generation:0,loading:false};
 try { session = JSON.parse(sessionStorage.getItem('kino-session')); } catch {}
 if (session && session.expiresAt < Date.now()) session = null;
 
@@ -144,6 +144,7 @@ function updateAnimatic(force=false){
   for(const range of [$('#dock-seek'),$('#player-seek')]){range.value=animatic.time;range.style.setProperty('--progress',`${animatic.time/total*100}%`);range.setAttribute('aria-valuetext',`${timecode(animatic.time)}, кадр ${shot.id}`);}
   $$('.timeline-clip').forEach(button=>{const active=button.dataset.clipId===shot.id;button.classList.toggle('current',active);button.setAttribute('aria-pressed',String(active));});
   $('#animatic-play').textContent=animatic.playing?'Ⅱ':'▶';$('#animatic-play').setAttribute('aria-label',animatic.playing?'Пауза':'Воспроизвести');
+  window.KinoTimeline?.update(animatic.time);
   const key=shot.id+':'+phase.id+':'+(version?.id||'scheme');
   if(force||animatic.shown!==key){
     $('#animatic-stage').innerHTML=imageMarkup(phase,version);
@@ -152,22 +153,33 @@ function updateAnimatic(force=false){
     animatic.shown=key;
   }
 }
-function pauseAnimatic(){animatic.playing=false;if(animatic.frame!==null)cancelAnimationFrame(animatic.frame);animatic.frame=null;if($('#animatic-play')){$('#animatic-play').textContent='▶';$('#animatic-play').setAttribute('aria-label','Воспроизвести');}}
-function playAnimatic(){
-  const total=currentEpisode.duration;
-  if(animatic.time>=total)animatic.time=0;
-  if(animatic.playing)return;
-  animatic.playing=true;animatic.last=performance.now();
-  function step(now){
+function pauseAnimatic(){
+  animatic.generation++;animatic.loading=false;animatic.playing=false;window.KinoTimeline?.stop();
+  if(animatic.frame!==null)cancelAnimationFrame(animatic.frame);animatic.frame=null;
+  if($('#animatic-play')){$('#animatic-play').textContent='▶';$('#animatic-play').setAttribute('aria-label','Воспроизвести');}
+}
+async function playAnimatic(){
+  if(animatic.playing||animatic.loading)return;
+  const total=currentEpisode.duration;if(animatic.time>=total)animatic.time=0;
+  const generation=++animatic.generation;animatic.loading=true;$('#animatic-play').textContent='…';
+  if(!window.KinoTimeline){animatic.loading=false;$('#animatic-play').textContent='▶';$$('[data-sound-status]').forEach(el=>el.textContent=window.KinoTimelineError||'Шумы загружаются. Нажмите ▶ ещё раз.');return;}
+  const ready=await window.KinoTimeline.start(animatic.time);
+  if(generation!==animatic.generation)return;
+  animatic.loading=false;if(!ready){$('#animatic-play').textContent='▶';return;}
+  animatic.playing=true;
+  function step(){
     if(!animatic.playing)return;
-    animatic.time=Math.min(total,animatic.time+(now-animatic.last)/1000);animatic.last=now;
+    animatic.time=Math.min(total,window.KinoTimeline.position());
     if(animatic.time>=total)pauseAnimatic();
     updateAnimatic();if(animatic.playing)animatic.frame=requestAnimationFrame(step);
   }
   updateAnimatic();animatic.frame=requestAnimationFrame(step);
 }
-function openAnimatic(play=true){if(!$('#animatic-dialog').open)$('#animatic-dialog').showModal();updateAnimatic(true);if(play)playAnimatic();}
-function seekAnimatic(time){animatic.time=Math.max(0,Math.min(Number($('#player-seek').max),Math.round(Number(time)*100)/100));animatic.last=performance.now();updateAnimatic();}
+function openAnimatic(play=true){if(!$('#animatic-dialog').open)$('#animatic-dialog').showModal();window.KinoTimeline?.render();updateAnimatic(true);if(play)playAnimatic();}
+function seekAnimatic(time){
+  const resume=animatic.playing||animatic.loading;pauseAnimatic();
+  animatic.time=Math.max(0,Math.min(currentEpisode.duration,Math.round(Number(time)*100)/100));updateAnimatic();if(resume)playAnimatic();
+}
 function openShot(index, keepVersion=false, phaseIndex=null) {
   currentShot=Math.max(0,Math.min(currentEpisode.shots.length-1,index));
   const shot=currentEpisode.shots[currentShot];
@@ -204,15 +216,16 @@ async function refreshGallery() {
   galleryRequest=true;
   try {
     const data=await request('/gallery');
+    window.KinoTimeline?.receive(data.timeline);
     if(data.revision!==gallery.revision){gallery=data;if(!$('#view-board').hidden)renderBoard();if($('#shot-dialog').open)openShot(currentShot,true);if(!$('#view-assets').hidden)renderAssets();if($('#asset-dialog').open)openAsset(currentAsset,true);}
     $('#sync-status').textContent='● Общая доска подключена · обновление каждые 15 с';
   } catch { $('#sync-status').textContent='Нет связи с сервером · загрузка временно недоступна'; }
   finally{$('#asset-sync').textContent=$('#sync-status').textContent;galleryRequest=false;}
 }
 function updateTeam(){
-  $('#assets-login').textContent=session?`${session.name} · выйти`:'Войти для загрузки';
-  $('#team-login').textContent=session?`${session.name} · выйти`:'Войти для загрузки';
-  $('#team-message').textContent=session?'Перетащите изображение на кадр или нажмите «Загрузить». Версии видит вся команда.':'Для загрузки войдите по коду проекта. Просмотр сценария и изображений открыт по ссылке.';
+  $('#assets-login').textContent=session?`${session.name} · выйти`:'Войти в команду';
+  $('#team-login').textContent=session?`${session.name} · выйти`:'Войти в команду';
+  $('#team-message').textContent=session?'Перетащите изображение на кадр или нажмите «Загрузить». Версии видит вся команда.':'Для загрузки изображений и сохранения монтажа войдите по коду проекта. Просмотр открыт по ссылке.';
 }
 function showLogin(){
   $('#login-message').textContent='';$('#team-code').value='';
@@ -243,6 +256,7 @@ document.addEventListener('click', async event=>{
   const upload=event.target.closest('[data-upload]');if(upload)startUpload(upload.dataset.upload);
   const version=event.target.closest('[data-version]');if(version){selectedVersion=version.dataset.version||null;openShot(currentShot,true);}
   if(event.target.closest('[data-animatic-open]'))openAnimatic();
+  if(event.target.closest('[data-edit-open]'))openAnimatic(false);
   const clip=event.target.closest('[data-time]');if(clip){seekAnimatic(clip.dataset.time);if(!$('#animatic-dialog').open)openAnimatic(false);}
   if(event.target.closest('#make-current')){
     const button=$('#make-current');button.disabled=true;
@@ -283,13 +297,13 @@ $('#shot-dialog').addEventListener('keydown',event=>{if(event.key==='ArrowLeft')
 $$('dialog').forEach(d=>d.addEventListener('click',event=>{if(event.target===d){const r=d.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)d.close();}}));
 $('#script-search').addEventListener('input',event=>{if(screenplay)renderScript(event.target.value.trim());});
 $('#print-board').addEventListener('click',()=>window.print());
-$('#animatic-play').addEventListener('click',()=>{if(animatic.playing)pauseAnimatic();else playAnimatic();});
+$('#animatic-play').addEventListener('click',()=>{if(animatic.playing||animatic.loading)pauseAnimatic();else playAnimatic();});
 $('#animatic-restart').addEventListener('click',()=>seekAnimatic(0));
 for(const range of [$('#dock-seek'),$('#player-seek')])range.addEventListener('input',event=>seekAnimatic(event.target.value));
 $('#animatic-dialog').addEventListener('close',pauseAnimatic);
 $('#animatic-dialog').addEventListener('keydown',event=>{
-  if(event.target.matches('input'))return;
-  if(event.code==='Space'){event.preventDefault();if(animatic.playing)pauseAnimatic();else playAnimatic();}
+  if(event.target.matches('input,select,textarea')||event.target.closest('#timeline-editor'))return;
+  if(event.code==='Space'){event.preventDefault();if(animatic.playing||animatic.loading)pauseAnimatic();else playAnimatic();}
   if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();const current=shotAt(animatic.time),target=event.key==='ArrowLeft'?Math.max(0,current.index-1):Math.min(currentEpisode.shots.length-1,current.index+1);seekAnimatic(currentEpisode.shots.slice(0,target).reduce((sum,s)=>sum+s.duration,0));}
 });
 window.addEventListener('hashchange',route);
