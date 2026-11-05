@@ -62,7 +62,7 @@ function highlighted(text, query) {
 function sceneName(scene) { return scene.title.replace(/^(ИНТ\.|ЭКСТ\.)\s*/, '').replace(/\.$/,'').toLocaleLowerCase('ru'); }
 function renderScript(query = '') {
   const beats=window.PILOT_BEATS.map((text,index)=>({text,number:index+1})).filter(b=>b.text.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru')));
-  $('#search-result').textContent=query?`Найдено событий: ${beats.length}`:'1 эпизод · 11 событий · 13 кадров';
+  $('#search-result').textContent=query?`Найдено событий: ${beats.length}`:'1 эпизод · 11 событий · 11 кадров';
   $('#scene-nav').innerHTML=beats.map(b=>`<a href="#script/beat-${b.number}"><span>${String(b.number).padStart(2,'0')}</span>${esc(b.text.slice(0,58))}…</a>`).join('');
   $('#script-content').innerHTML=`<section id="scene-13"><div class="script-title"><h3>ХЛОПОК ДВЕРЬЮ</h3><p>ЭКСТ. ШОССЕ — НОЧЬ. СИЛЬНЫЙ ДОЖДЬ.<br>Авторская последовательность · редакция 05.11.2026</p></div>${beats.map(b=>`<section class="script-scene" id="beat-${b.number}"><span class="scene-number">СОБЫТИЕ ${String(b.number).padStart(2,'0')}</span><p>${highlighted(b.text,query)}</p></section>`).join('')||'<p class="no-results">Ничего не найдено.</p>'}</section>`;
 }
@@ -72,7 +72,7 @@ function renderEpisodes() {
 const shotData=id=>gallery.shots[id] || {images:[],current:null};
 const mediaUrl=path=>`${apiBase}/${path.replace(/^\//,'')}`;
 function shotSourceMarkup(shot){
-  return `<section class="shot-source" aria-label="Текст сценария для кадра ${shot.id}">${(shot.phases||[shot]).map(p=>`<div class="source-heading"><span class="source-label">Текст сценария · новая редакция</span><a href="#script/beat-${p.step}">Событие ${p.step} / 11 ↗</a></div><blockquote><p>${esc(p.script)}</p></blockquote>`).join('')}</section>`;
+  return `<section class="shot-source" aria-label="Текст сценария для кадра ${shot.id}">${(shot.phases||[shot]).filter((p,i,all)=>all.findIndex(other=>other.step===p.step)===i).map(p=>`<div class="source-heading"><span class="source-label">Текст сценария · новая редакция</span><a href="#script/beat-${p.step}">Событие ${p.step} / 11 ↗</a></div><blockquote><p>${esc(p.script)}</p></blockquote>`).join('')}</section>`;
 }
 function phaseAt(shot,elapsed){
   const phases=shot.phases||[shot];let start=0;
@@ -99,7 +99,7 @@ function renderBoard() {
   $('#shot-grid').innerHTML=currentEpisode.shots.map((shot,index)=>{
     const start=time;time=Math.round((time+shot.duration)*100)/100;
     const record=shotData(shot.id), active=record.images.find(i=>i.id===record.current);
-    return `<article class="shot-card ${shot.phases?'compound-shot':''}" data-shot="${shot.id}"><button class="shot-image" data-open-shot="${index}" aria-label="Открыть кадр ${shot.id}: ${esc(shot.title)}">${boardImage(shot)}<span class="shot-id">${shot.id}</span><span class="shot-expand">↗</span></button><div class="shot-body"><div class="shot-meta"><span>${start.toLocaleString('ru-RU')}–${time.toLocaleString('ru-RU')} СЕК</span><span>${esc(shot.size.toUpperCase())}</span></div><h3>${esc(shot.title)}</h3>${shot.phases?'<p class="continuous-note">ОДИН КАДР · ДВЕ ФАЗЫ · БЕЗ СКЛЕЙКИ</p>':''}${shotSourceMarkup(shot)}<details class="shot-staging"><summary>Постановка, камера и звук</summary><p>${esc(shot.action)}</p><dl><dt>Крупность</dt><dd>${esc(shot.size)}</dd><dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd></dl></details></div><div class="shot-actions">${shot.phases?shot.phases.map((p,i)=>`<div class="phase-action"><button data-open-phase="${i}" data-shot-index="${index}">${p.label} · версии: ${shotData(p.id).images.length}</button><button data-upload="${p.id}">+ Загрузить фазу ${i+1}</button></div>`).join(''):`<span class="version-count">${record.images.length ? `ВЕРСИЙ: ${record.images.length}` : 'СХЕМА · НЕТ ЗАГРУЗОК'}</span><button data-upload="${shot.id}">+ Загрузить</button>`}</div></article>`;
+    return `<article class="shot-card ${shot.phases?'compound-shot':''}" data-shot="${shot.id}" style="--phase-count:${shot.phases?.length||1}"><button class="shot-image" data-open-shot="${index}" aria-label="Открыть кадр ${shot.id}: ${esc(shot.title)}">${boardImage(shot)}<span class="shot-id">${shot.id}</span><span class="shot-expand">↗</span></button><div class="shot-body"><div class="shot-meta"><span>${start.toLocaleString('ru-RU')}–${time.toLocaleString('ru-RU')} СЕК</span><span>${esc(shot.size.toUpperCase())}</span></div><h3>${esc(shot.title)}</h3>${shot.phases?`<p class="continuous-note">ОДИН КАДР · ${shot.phases.length===3?'ТРИ':'ДВЕ'} ФАЗЫ · БЕЗ СКЛЕЙКИ</p>`:''}${shotSourceMarkup(shot)}<details class="shot-staging"><summary>Постановка, камера и звук</summary><p>${esc(shot.action)}</p><dl><dt>Крупность</dt><dd>${esc(shot.size)}</dd><dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd></dl></details></div><div class="shot-actions">${shot.phases?shot.phases.map((p,i)=>`<div class="phase-action"><button data-open-phase="${i}" data-shot-index="${index}">${p.label} · версии: ${shotData(p.id).images.length}</button><button data-upload="${p.id}">+ Загрузить фазу ${i+1}</button></div>`).join(''):`<span class="version-count">${record.images.length ? `ВЕРСИЙ: ${record.images.length}` : 'СХЕМА · НЕТ ЗАГРУЗОК'}</span><button data-upload="${shot.id}">+ Загрузить</button>`}</div></article>`;
   }).join('');
   renderTimeline();
 }
@@ -133,7 +133,7 @@ function renderTimeline(){
   let start=0;
   const strip=currentEpisode.shots.map(shot=>{
     const pos=start;start=Math.round((start+shot.duration)*100)/100;const record=shotData(shot.id),version=record.images.find(v=>v.id===record.current);
-    return `<button class="timeline-clip" data-time="${pos}" data-clip-id="${shot.id}" style="flex:${shot.duration}" aria-label="${shot.id}: ${esc(shot.title)}, с ${pos} секунды, ${shot.duration} секунд"><span class="clip-picture">${boardImage(shot)}</span><span class="clip-label">${shot.id}${shot.phases?' · 2 фазы':''}<span>${shot.duration}с</span></span></button>`;
+    return `<button class="timeline-clip" data-time="${pos}" data-clip-id="${shot.id}" style="flex:${shot.duration}" aria-label="${shot.id}: ${esc(shot.title)}, с ${pos} секунды, ${shot.duration} секунд"><span class="clip-picture">${boardImage(shot)}</span><span class="clip-label">${shot.id}${shot.phases?' · '+shot.phases.length+' фазы':''}<span>${shot.duration}с</span></span></button>`;
   }).join('');
   $('#dock-strip').innerHTML=strip;$('#player-strip').innerHTML=strip;updateAnimatic(true);
 }
