@@ -6,14 +6,14 @@ export function shotStart(state,id){let t=0;for(const s of state.shots){if(s.id=
 export function defaultTimeline(episode){
   const clip=(id,source,start,duration,track,gain=1,offset=0)=>({id,source,start,duration,offset,track,gain,muted:false});
   return {schema:1,shots:episode.shots.map(s=>({id:s.id,duration:s.duration,...(s.phases?{phases:s.phases.map(p=>({id:p.id,duration:p.duration}))}:{})})),sounds:[
-    clip('rain-bed','rain',0,19.3,0,.8),
+    clip('rain-bed','rain',0,20.2,0,.8),
     clip('exit-steps','steps',.25,1.6,1,.65),
     clip('door-slam','door',2.55,.46,1),
-    clip('phone-drop','phone',4.12,.55,1,.9),
-    clip('walk-steps','steps',6.2,1.4,1,.7,1.5),
-    clip('horn-warning','horn-long',8.65,5.15,3,.65),
-    clip('truck-pass','truck',9.15,6.94,2,.9),
-    clip('jump-splash','steps',11.55,.6,1,.85,3.7)
+    clip('phone-drop','phone',3.45,.55,1,.9),
+    clip('walk-steps','steps',7.1,1.4,1,.7,1.5),
+    clip('horn-warning','horn-long',9.55,5.15,3,.65),
+    clip('truck-pass','truck',10.05,6.94,2,.9),
+    clip('jump-splash','steps',12.45,.6,1,.85,3.7)
   ]};
 }
 export function validateTimeline(state,library){

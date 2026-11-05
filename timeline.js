@@ -1,6 +1,6 @@
-import {round,defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart} from './server/timeline-model.mjs?v=20261105-18';
+import {round,defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart} from './server/timeline-model.mjs?v=20261105-20';
 async function initTimeline(){
-const library=await fetch('server/sound-library.json?v=20261105-18').then(r=>{if(!r.ok)throw new Error('Библиотека звуков недоступна');return r.json();});
+const library=await fetch('server/sound-library.json?v=20261105-20').then(r=>{if(!r.ok)throw new Error('Библиотека звуков недоступна');return r.json();});
 const original=structuredClone(currentEpisode),defaults=defaultTimeline(original),draftKey='kino-taxi-timeline-v1';
 let state=structuredClone(defaults),revision=0,dirty=false,selected={type:'shot',id:'T01'},history=[],future=[],zoom=55,drag=null,saving=false,remote=null,notice=null;
 const root=document.getElementById('timeline-editor');

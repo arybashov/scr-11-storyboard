@@ -10,8 +10,8 @@ const context={window:{}};vm.runInNewContext(fs.readFileSync(new URL('../episode
 const library=JSON.parse(fs.readFileSync(new URL('./sound-library.json',import.meta.url),'utf8'));
 const fresh=()=>defaultTimeline(context.window.EPISODES[0]);
 test('duration edits preserve compound phases, shift later sounds and keep the rain bed',()=>{
- const s=fresh();resizeShot(s,'T01',4,true);assert.equal(totalDuration(s),20.3);assert.equal(s.sounds.find(c=>c.id==='horn-warning').start,9.65);assert.equal(s.sounds[0].duration,20.3);assert.equal(s.shots[0].phases.reduce((n,p)=>n+p.duration,0),4);validateTimeline(s,library);
- resizeShot(s,'T15',.2,true);validateTimeline(s,library);assert.equal(totalDuration(s),18.8);
+ const s=fresh();resizeShot(s,'T01',4,true);assert.equal(totalDuration(s),21.2);assert.equal(s.sounds.find(c=>c.id==='horn-warning').start,10.55);assert.equal(s.sounds[0].duration,21.2);assert.equal(s.shots[0].phases.reduce((n,p)=>n+p.duration,0),4);validateTimeline(s,library);
+ resizeShot(s,'T15',.2,true);validateTimeline(s,library);assert.equal(totalDuration(s),19.7);
  const bad=fresh();bad.sounds[0].source='https://evil.invalid/a.mp3';assert.throws(()=>validateTimeline(bad,library));
  const badTrim=fresh();badTrim.sounds[1].offset=6.9;assert.throws(()=>validateTimeline(badTrim,library));
  const dupe=fresh();dupe.sounds.push({...dupe.sounds[0]});assert.throws(()=>validateTimeline(dupe,library));
