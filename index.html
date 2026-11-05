@@ -6,10 +6,11 @@
   <meta name="theme-color" content="#141917">
   <meta name="description" content="Подземный переход — сценарий, выбор эпизода для пилота и рабочая раскадровка фильма SCR-11.">
   <title>Подземный переход — сценарий и раскадровка</title>
-  <link rel="stylesheet" href="styles.css?v=20261105-4">
-  <script src="episodes.js?v=20261105-4" defer></script>
-  <script src="config.js?v=20261105-4" defer></script>
-  <script src="app.js?v=20261105-4" defer></script>
+  <link rel="stylesheet" href="styles.css?v=20261105-5">
+  <script src="episodes.js?v=20261105-5" defer></script>
+  <script src="assets.js?v=20261105-5" defer></script>
+  <script src="config.js?v=20261105-5" defer></script>
+  <script src="app.js?v=20261105-5" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">К содержанию</a>
@@ -33,6 +34,7 @@
     <a href="#script" data-view="script"><span>01</span> Сценарий <small id="scene-count">21 сцена</small></a>
     <a href="#episodes" data-view="episodes"><span>02</span> Эпизоды <small>4 эпизода</small></a>
     <a href="#board/taxi" data-view="board"><span>03</span> Раскадровка <small>22 кадра</small></a>
+    <a href="#assets" data-view="assets"><span>04</span> Персонажи и ассеты</a>
   </nav>
 
   <main id="main" tabindex="-1">
@@ -66,6 +68,12 @@
         <div id="dock-strip" class="timeline-strip" aria-label="Кадры на таймлайне"></div>
       </section>
     </section>
+    <section id="view-assets" class="view" hidden>
+      <div class="section-heading"><div><p class="eyebrow">БИБЛИОТЕКА ПИЛОТА / ТАКСИ</p><h2>Персонажи и ассеты</h2></div><button id="assets-login">Войти для загрузки</button></div>
+      <p class="section-intro">Общие референсы для художников и команды. Начинаем с шести карточек пилота. Загрузите варианты и выберите основной референс; окончательный дизайн ещё предстоит утвердить.</p>
+      <div class="asset-tools"><div id="asset-filters" class="episode-selector" aria-label="Категории ассетов"></div><span id="asset-sync" class="team-status" role="status">Подключение…</span></div>
+      <div id="asset-grid" class="asset-grid"></div>
+    </section>
   </main>
 
   <footer class="footer"><span>KINO <span class="muted">/</span> ПОДЗЕМНЫЙ ПЕРЕХОД</span><span>Рабочая версия · 05.11.2026</span><a href="#script">К сценарию ↑</a></footer>
@@ -78,13 +86,20 @@
     <div class="dialog-body"><h2 id="dialog-title"></h2><div id="dialog-script"></div><span class="source-label staging-label">Постановочное описание</span><p id="dialog-action"></p><dl id="dialog-details"></dl></div>
     <div class="dialog-nav"><button id="dialog-prev">← Предыдущий</button><button id="dialog-next">Следующий →</button></div>
   </dialog>
+  <dialog id="asset-dialog" aria-labelledby="asset-dialog-title">
+    <div class="dialog-top"><span class="eyebrow">РЕФЕРЕНСЫ / <span id="asset-dialog-code"></span></span><button data-close="asset-dialog" aria-label="Закрыть ассет">✕</button></div>
+    <div id="asset-dialog-image" class="asset-detail-image"></div>
+    <div id="asset-versions" class="versions" aria-label="Референсы ассета"></div>
+    <div id="asset-version-info" class="version-info" role="status"></div>
+    <div class="dialog-body"><h2 id="asset-dialog-title"></h2><p id="asset-dialog-description"></p><span class="source-label">Задание на разработку</span><p id="asset-dialog-brief"></p><button id="asset-dialog-upload">+ Загрузить референсы</button></div>
+  </dialog>
   <dialog id="login-dialog" class="form-dialog" aria-labelledby="login-title">
     <div class="dialog-top"><span class="eyebrow">ДОСТУП К ЗАГРУЗКЕ</span><button type="button" data-close="login-dialog" aria-label="Закрыть вход">✕</button></div>
     <form id="login-form"><h2 id="login-title">Войти в команду</h2><p>Введите своё имя и общий код проекта. Имя будет указано рядом с вашими изображениями.</p><label for="team-name">Ваше имя</label><input id="team-name" name="name" required minlength="2" maxlength="60" autocomplete="name"><label for="team-code">Код проекта</label><input id="team-code" name="code" type="password" required autocomplete="current-password"><p id="login-message" class="form-message" role="status"></p><button type="submit" class="primary">Войти</button></form>
   </dialog>
   <dialog id="upload-dialog" class="form-dialog" aria-labelledby="upload-title">
     <div class="dialog-top"><span id="upload-shot-label" class="eyebrow"></span><button type="button" data-close="upload-dialog" aria-label="Закрыть загрузку">✕</button></div>
-    <form id="upload-form"><h2 id="upload-title">Добавить изображения</h2><p>Файлы сохранятся в общей галерее кадра. Первая загрузка станет основной; следующие добавятся как версии.</p><label for="upload-files">Изображения</label><input id="upload-files" type="file" accept="image/jpeg,image/png,image/webp" multiple required><p class="upload-hint">JPG, PNG, WebP · до 15 МБ на файл · оригинал сохраняется</p><label for="upload-note">Комментарий к версии</label><textarea id="upload-note" maxlength="500" placeholder="Например: вариант света, крупность, что изменилось…"></textarea><p id="upload-message" class="form-message" role="status" aria-live="polite"></p><button type="submit" class="primary">Загрузить в общую доску</button></form>
+    <form id="upload-form"><h2 id="upload-title">Добавить изображения</h2><p>Файлы сохранятся в общей галерее выбранной карточки. Первая загрузка станет основной; следующие добавятся как версии.</p><label for="upload-files">Изображения</label><input id="upload-files" type="file" accept="image/jpeg,image/png,image/webp" multiple required><p class="upload-hint">JPG, PNG, WebP · до 15 МБ на файл · оригинал сохраняется</p><label for="upload-note">Комментарий к версии</label><textarea id="upload-note" maxlength="500" placeholder="Например: вариант света, крупность, что изменилось…"></textarea><p id="upload-message" class="form-message" role="status" aria-live="polite"></p><button type="submit" class="primary">Загрузить в общую доску</button></form>
   </dialog>
   <dialog id="animatic-dialog" class="animatic-dialog" aria-labelledby="animatic-title">
     <div class="dialog-top"><span class="eyebrow" id="animatic-title">АНИМАТИК</span><button type="button" data-close="animatic-dialog" aria-label="Закрыть аниматик">✕</button></div>

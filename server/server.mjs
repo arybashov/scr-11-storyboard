@@ -9,6 +9,7 @@ const MAX_FILE = 15 * 1024 * 1024;
 const MAX_STORAGE = Number(process.env.MAX_STORAGE_BYTES || 1024 * 1024 * 1024);
 const TTL = 7 * 24 * 60 * 60 * 1000;
 const validShots = new Set(['T01','T02','T03','T04','T05','T06','A01','A02','A03','A04','A05','B01','B02','B03','B04','B05','C01','C02','C03','C04','C05','C06']);
+const validAssets = new Set(['oksana','taxi','phone','truck','highway','underpass']);
 const formats = {jpeg:'jpg',png:'png',webp:'webp'};
 const mime = {jpg:'image/jpeg',png:'image/png',webp:'image/webp'};
 sharp.cache({memory:24,files:0,items:10});sharp.concurrency(1);
@@ -23,6 +24,7 @@ export function createBoardServer(options = {}) {
   const indexPath=path.join(directory,'index.json');
   let index=fs.existsSync(indexPath)?JSON.parse(fs.readFileSync(indexPath,'utf8')):{revision:0,shots:{}};
   if(!Number.isInteger(index.revision) || !index.shots)throw new Error('Invalid gallery index: refusing to overwrite');
+  index.assets ||= {};
   let storedBytes=fs.readdirSync(path.join(directory,'media')).reduce((n,f)=>n+fs.statSync(path.join(directory,'media',f)).size,0);
   let activeUpload=false;
   const attempts=new Map();
@@ -81,19 +83,19 @@ export function createBoardServer(options = {}) {
         const encoded=Buffer.from(JSON.stringify(payload)).toString('base64url');
         reply(200,{...payload,token:encoded+'.'+sign(encoded)});return;
       }
-      const route=url.pathname.match(/^\/shots\/([ABCT]\d{2})\/(images|current)$/);
-      if(route&&validShots.has(route[1])){
+      const route=url.pathname.match(/^\/(shots|assets)\/([a-z0-9-]+|[ABCT]\d{2})\/(images|current)$/);
+      if(route&&(route[1]==='shots'?validShots:validAssets).has(route[2])){
         const auth=authenticate(req);
         if(!auth){req.resume();reply(401,{error:'Войдите в команду по коду проекта'});return;}
-        const shot=route[1];
-        if(req.method==='PATCH'&&route[2]==='current'){
-          const data=await jsonBody(req),record=index.shots[shot];
+        const shot=route[2], collection=index[route[1]];
+        if(req.method==='PATCH'&&route[3]==='current'){
+          const data=await jsonBody(req),record=collection[shot];
           if(!record?.images.some(i=>i.id===data.id)){reply(404,{error:'Версия не найдена'});return;}
           const previous=record.current;record.current=data.id;
           try{save();}catch(error){record.current=previous;throw error;}
           reply(200,{ok:true,revision:index.revision});return;
         }
-        if(req.method==='POST'&&route[2]==='images'){
+        if(req.method==='POST'&&route[3]==='images'){
           if(activeUpload){req.resume();reply(429,{error:'Сейчас загружается другой файл. Повторите через несколько секунд.'});return;}
           const length=Number(req.headers['content-length']);
           if(!Number.isSafeInteger(length)||length<=0||length>MAX_FILE){req.resume();reply(413,{error:'Файл должен быть не больше 15 МБ'});return;}
@@ -114,8 +116,8 @@ export function createBoardServer(options = {}) {
             if(storedBytes+buffer.length+thumbnail.length>MAX_STORAGE){reply(507,{error:'Хранилище заполнено'});return;}
             for(const[file,bytes]of[[original,buffer],[thumb,thumbnail]]){const full=path.join(directory,file);fs.writeFileSync(full,bytes,{flag:'wx',mode:0o640});created.push(full);}
             const entry={id,author:auth.name,note,originalName:name,createdAt:new Date().toISOString(),width:meta.width,height:meta.height,bytes:buffer.length,original,thumbnail:thumb};
-            const record=index.shots[shot]||{images:[],current:null};const previous=record.current;
-            record.images.push(entry);if(!record.current)record.current=id;index.shots[shot]=record;
+            const record=collection[shot]||{images:[],current:null};const previous=record.current;
+            record.images.push(entry);if(!record.current)record.current=id;collection[shot]=record;
             try{save();}catch(error){record.images.pop();record.current=previous;throw error;}
             storedBytes+=buffer.length+thumbnail.length;created.length=0;
             reply(201,{ok:true,image:entry,revision:index.revision});return;

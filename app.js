@@ -8,6 +8,10 @@ let screenplay, currentEpisode = episodes[0], currentShot = 0, selectedVersion =
 let gallery = {revision: -1, shots: {}}, pendingUpload = null, uploadTarget = null, galleryRequest = false;
 let session = null;
 let lastView = null;
+let assetFilter='Все', currentAsset=null, assetVersion=null;
+const assets=window.ASSETS;
+const assetData=id=>gallery.assets?.[id] || {images:[],current:null};
+const uploadPath=id=>assets.some(a=>a.id===id)?'assets':'shots';
 const animatic = {time:0,playing:false,last:0,frame:null,episode:null,shown:null};
 try { session = JSON.parse(sessionStorage.getItem('kino-session')); } catch {}
 if (session && session.expiresAt < Date.now()) session = null;
@@ -36,6 +40,11 @@ function sketch(type, label = '') {
   if(type==='door') scene=`<rect width="640" height="360" fill="#33422f"/><g stroke="${line}" opacity=".5"><path d="M0 70H640M0 145H640M0 220H640M0 295H640M90 0V360M210 0V360M430 0V360M550 0V360"/></g><path d="M270 28H434V346H270Z" fill="#6b7963" stroke="#b8c7a8" stroke-width="3"/><path d="M287 43H418V334H287Z" fill="none" stroke="#35482f"/><path d="M406 178H378V188" fill="none" stroke="#e0e9ce" stroke-width="5"/>`+person(265,276,1.7,'reach')+`<path d="M580 0H640V360H580Z" fill="#162419"/>`+arrow(515,245);
   if(type==='handle') scene=`<rect width="640" height="360" fill="#73836b"/><path d="M64 0V360M82 0V360M490 0V360" stroke="#374b32" stroke-width="3"/><rect x="346" y="120" width="39" height="112" rx="4" fill="#293b25" stroke="#b1c3a0"/><path d="M365 145V178H244" stroke="#e0e5d0" stroke-width="14" fill="none"/><path d="M282 104Q243 119 245 151" stroke="${light}" stroke-width="3" fill="none"/><path d="M237 140L245 153L257 141" fill="none" stroke="${light}" stroke-width="3"/><path d="M533 0H640V360H533Z" fill="#2e402b" stroke="${line}"/>`+arrow(462,271);
   if(type==='ceiling') scene=corridor+person(323,285,1.5,'up')+`<path d="M0 0H640V95L390 149H250L0 95Z" fill="#4b5c40" stroke="${line}"/><path d="M0 95L250 149H390L640 95" fill="none" stroke="#d5ec8c" stroke-width="2"/><g stroke="${light}" stroke-width="3" fill="none"><path d="M165 118V161L155 149M165 161L175 149M475 118V161L465 149M475 161L485 149"/></g>`;
+  // Each panel has one explicit framing; direction of traffic stays right to left.
+  if(type==='taxi-slam')scene=`<rect width="640" height="360" fill="#1d2b21"/><path d="M-10-10H360L396 370H-10Z" fill="#617054" stroke="#bac8a8" stroke-width="3"/><path d="M38 0H304L320 108H38Z" fill="#17261d" stroke="#9eaf9a"/><path d="M366 0L401 360" stroke="#d5ec8c" stroke-width="4"/><path d="M280 155H337" stroke="#cbd6ba" stroke-width="8"/><path d="M640 84L497 126L435 173L379 179L354 163L359 142L391 152L422 139L470 92L640 30" fill="#8a9c76" stroke="#cfddbd" stroke-width="2"/><g transform="rotate(30 451 248)"><rect x="415" y="190" width="72" height="121" rx="8" fill="#101a13" stroke="#d5ec8c" stroke-width="3"/><rect x="423" y="201" width="56" height="94" fill="#627956"/></g><path d="M452 174L471 159M468 186L494 179M431 175L433 149M488 261L523 279" stroke="#d5ec8c" stroke-width="3"/>`;
+  if(type==='phone-road')scene=`<rect width="640" height="360" fill="#1b2a21"/><path d="M0 120H640V360H0Z" fill="#3b4937"/><path d="M0 320L640 184" stroke="#b9c5a7" stroke-width="8"/><g transform="rotate(64 290 235)"><rect x="230" y="130" width="120" height="208" rx="12" fill="#101a13" stroke="#d5ec8c" stroke-width="4"/><rect x="240" y="144" width="100" height="176" fill="#59704e"/></g><path d="M80 271L177 251M115 288L198 271" stroke="#b3c69d" stroke-dasharray="6 8"/><ellipse cx="490" cy="91" rx="23" ry="15" fill="#d5ec8c" opacity=".7"/><ellipse cx="585" cy="91" rx="23" ry="15" fill="#d5ec8c" opacity=".7"/>${arrow(430,60)}`;
+  if(type==='truck')scene=`<rect width="640" height="360" fill="#203025"/><path d="M380 0H640V229H380Z" fill="#526447" stroke="#aab99a"/><path d="M0 320H640V360H0Z" fill="#3b4a36"/><circle cx="520" cy="235" r="94" fill="#101b13" stroke="#aab99a" stroke-width="3"/><circle cx="520" cy="235" r="45" fill="#35482d" stroke="#8da37b"/><path d="M0 360V187Q44 146 96 163L202 227L160 310L135 360Z" fill="#172219" stroke="#bac5ac" stroke-width="2"/><ellipse cx="198" cy="153" rx="35" ry="43" transform="rotate(-35 198 153)" fill="#788a67" stroke="#bdc9ac" stroke-width="2"/><path d="M169 119Q191 82 221 112L235 143L208 128L179 150Z" fill="#111a13"/><path d="M130 217L239 259L288 310L335 313" fill="none" stroke="#9daf8b" stroke-width="21" stroke-linecap="round"/><rect x="321" y="317" width="56" height="17" rx="4" fill="#d5ec8c"/>${arrow(480,60)}`;
+  if(type==='underpass-entry')scene=`<rect width="640" height="360" fill="#24362a"/><path d="M0 272H640V360H0Z" fill="#4a5840"/><path d="M0 326H640" stroke="#b4c49f" stroke-width="3" stroke-dasharray="70 34"/><path d="M276 178H510L580 274H235Z" fill="#101a14" stroke="#adbf99" stroke-width="2"/><g stroke="#829774" fill="none"><path d="M260 253H562M271 235H550M283 218H537M294 203H526M305 190H516"/><path d="M235 274V178L276 109H510L580 178V274M276 109V178M510 109V178" stroke-width="4"/></g>${person(178,235,1.2)}${rain}`;
   return `<svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(label || 'Схема композиции кадра')}"><rect width="640" height="360" fill="#1f2b22"/>${scene}<path d="M16 30V16H30M610 16H624V30M16 330V344H30M610 344H624V330" stroke="#c2d1b1" opacity=".4" fill="none"/><path d="M0 342H640" stroke="#121b12" opacity=".5"/></svg>`;
 }
 
@@ -111,13 +120,15 @@ function renderBoard() {
 }
 function route() {
   const [view='script',id] = location.hash.slice(1).split('/');
-  const valid = ['script','episodes','board'].includes(view) ? view : 'script';
+  const valid = ['script','episodes','board','assets'].includes(view) ? view : 'script';
   const changedView = lastView !== valid; lastView = valid;
   document.body.classList.toggle('board-open',valid==='board');
   pauseAnimatic();
   if(valid!=='board')for(const dialog of [$('#shot-dialog'),$('#animatic-dialog')])if(dialog.open)dialog.close();
   $$('.view').forEach(el=>{el.hidden=el.id!==`view-${valid}`;});
   $$('.main-nav a').forEach(a=>{a.classList.toggle('active',a.dataset.view===valid);if(a.dataset.view===valid)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+  if(valid!=='assets' && $('#asset-dialog').open)$('#asset-dialog').close();
+  if(valid==='assets'){renderAssets();refreshGallery();}
   if(valid==='board') { currentEpisode=episodes.find(e=>e.id===id)||episodes[0];renderBoard();refreshGallery(); }
   if(changedView && valid!=='script')requestAnimationFrame(()=>$('#main').scrollIntoView({behavior:'instant'}));
   if(valid==='script'&&id&&screenplay){
@@ -204,12 +215,13 @@ async function refreshGallery() {
   galleryRequest=true;
   try {
     const data=await request('/gallery');
-    if(data.revision!==gallery.revision){gallery=data;if(!$('#view-board').hidden)renderBoard();if($('#shot-dialog').open)openShot(currentShot,true);}
+    if(data.revision!==gallery.revision){gallery=data;if(!$('#view-board').hidden)renderBoard();if($('#shot-dialog').open)openShot(currentShot,true);if(!$('#view-assets').hidden)renderAssets();if($('#asset-dialog').open)openAsset(currentAsset,true);}
     $('#sync-status').textContent='● Общая доска подключена · обновление каждые 15 с';
   } catch { $('#sync-status').textContent='Нет связи с сервером · загрузка временно недоступна'; }
-  finally{galleryRequest=false;}
+  finally{$('#asset-sync').textContent=$('#sync-status').textContent;galleryRequest=false;}
 }
 function updateTeam(){
+  $('#assets-login').textContent=session?`${session.name} · выйти`:'Войти для загрузки';
   $('#team-login').textContent=session?`${session.name} · выйти`:'Войти для загрузки';
   $('#team-message').textContent=session?'Перетащите изображение на кадр или нажмите «Загрузить». Версии видит вся команда.':'Для загрузки войдите по коду проекта. Просмотр сценария и изображений открыт по ссылке.';
 }
@@ -221,11 +233,20 @@ function showLogin(){
 function startUpload(id,files=null){
   if(!session){pendingUpload={id,files};showLogin();return;}
   uploadTarget=id;$('#upload-form').reset();$('#upload-message').textContent='';$('#upload-message').classList.remove('error');
-  $('#upload-shot-label').textContent=`КАДР ${id} / ${session.name}`;
+  $('#upload-shot-label').textContent=`${uploadPath(id)==='assets'?'АССЕТ '+assets.find(a=>a.id===id).title:'КАДР '+id} / ${session.name}`;
   if(files){const dt=new DataTransfer();[...files].forEach(f=>dt.items.add(f));$('#upload-files').files=dt.files;}
   $('#upload-dialog').showModal();
 }
 document.addEventListener('click', async event=>{
+  const asset=event.target.closest('[data-open-asset]');if(asset)openAsset(asset.dataset.openAsset);
+  const filter=event.target.closest('[data-asset-filter]');if(filter){assetFilter=filter.dataset.assetFilter;renderAssets();}
+  const av=event.target.closest('[data-asset-version]');if(av){assetVersion=av.dataset.assetVersion;openAsset(currentAsset,true);}
+  if(event.target.closest('#asset-dialog-upload'))startUpload(currentAsset);
+  if(event.target.closest('#asset-make-current')){
+    const button=$('#asset-make-current');button.disabled=true;
+    try{await request(`/assets/${currentAsset}/current`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:assetVersion})});await refreshGallery();}
+    catch(error){button.disabled=false;$('#asset-version-info').append(document.createTextNode(' · '+error.message));}
+  }
   const close=event.target.closest('[data-close]');if(close)document.getElementById(close.dataset.close).close();
   const ep=event.target.closest('[data-episode]');if(ep)location.hash=`board/${ep.dataset.episode}`;
   const shot=event.target.closest('[data-open-shot]');if(shot)openShot(Number(shot.dataset.openShot));
@@ -239,7 +260,7 @@ document.addEventListener('click', async event=>{
     catch(error){button.disabled=false;button.textContent=error.message;}
   }
 });
-$('#team-login').addEventListener('click',()=>{if(session){session=null;sessionStorage.removeItem('kino-session');updateTeam();}else showLogin();});
+for(const loginButton of [$('#team-login'),$('#assets-login')])loginButton.addEventListener('click',()=>{if(session){session=null;sessionStorage.removeItem('kino-session');updateTeam();}else showLogin();});
 $('#login-form').addEventListener('submit',async event=>{
   event.preventDefault();const button=$('button[type=submit]',event.target);button.disabled=true;
   $('#login-message').textContent='Подключение…';$('#login-message').classList.remove('error');
@@ -258,7 +279,7 @@ $('#upload-form').addEventListener('submit',async event=>{
   if(invalid){$('#upload-message').textContent=`${invalid.name}: нужен JPG, PNG или WebP до 15 МБ.`;$('#upload-message').classList.add('error');return;}
   button.disabled=true;let completed=0;
   try{
-    for(const file of files){$('#upload-message').textContent=`Загружаю ${completed+1} из ${files.length}…`;await request(`/shots/${uploadTarget}/images`,{method:'POST',headers:{'Content-Type':file.type,'X-File-Name':encodeURIComponent(file.name),'X-Image-Note':encodeURIComponent(note)},body:file});completed++;}
+    for(const file of files){$('#upload-message').textContent=`Загружаю ${completed+1} из ${files.length}…`;await request(`/${uploadPath(uploadTarget)}/${uploadTarget}/images`,{method:'POST',headers:{'Content-Type':file.type,'X-File-Name':encodeURIComponent(file.name),'X-Image-Note':encodeURIComponent(note)},body:file});completed++;}
     $('#upload-dialog').close();await refreshGallery();
   }catch(error){$('#upload-message').textContent=`${completed?`Сохранено ${completed} из ${files.length}. `:''}${error.message}`;$('#upload-message').classList.add('error');const dt=new DataTransfer();files.slice(completed).forEach(f=>dt.items.add(f));$('#upload-files').files=dt.files;await refreshGallery();}
   finally{button.disabled=false;}
@@ -284,5 +305,42 @@ $('#animatic-dialog').addEventListener('keydown',event=>{
 window.addEventListener('hashchange',route);
 $('#hero-sketch').innerHTML=sketch('corridor');renderEpisodes();updateTeam();route();
 fetch('data/screenplay.json').then(r=>{if(!r.ok)throw new Error('Сценарий недоступен');return r.json();}).then(data=>{screenplay=data;renderScript();route();}).catch(()=>{$('#script-content').innerHTML='<p>Не удалось загрузить текст. <a href="source/SCR-11-Underground-Crossing.docx">Скачать исходный DOCX</a></p>';});
-setInterval(()=>{if(!document.hidden&&!$('#view-board').hidden)refreshGallery();},15000);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseAnimatic();else if(!$('#view-board').hidden)refreshGallery();});
+setInterval(()=>{if(!document.hidden&&(!$('#view-board').hidden||!$('#view-assets').hidden))refreshGallery();},15000);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseAnimatic();else if((!$('#view-board').hidden||!$('#view-assets').hidden))refreshGallery();});
+
+function assetImage(asset,version){
+  return version?`<img src="${esc(mediaUrl(version.thumbnail))}" alt="${esc(asset.title)} — референс" loading="lazy">`:`<span class="asset-placeholder"><span>${esc(asset.code)}</span><strong>${esc(asset.title)}</strong><small>Референсы ещё не загружены</small></span>`;
+}
+function renderAssets(){
+  $('#asset-filters').innerHTML=['Все',...new Set(assets.map(a=>a.category))].map(c=>`<button data-asset-filter="${esc(c)}" class="${assetFilter===c?'active':''}" aria-pressed="${assetFilter===c}">${esc(c)}</button>`).join('');
+  $('#asset-grid').innerHTML=assets.filter(a=>assetFilter==='Все'||a.category===assetFilter).map(a=>{
+    const record=assetData(a.id),version=record.images.find(v=>v.id===record.current);
+    const links=a.shots.map(id=>{const ep=episodes.find(e=>e.shots.some(s=>s.id===id));return `<a href="#board/${ep.id}" data-linked-shot="${id}">${id}</a>`;}).join('');
+    return `<article class="shot-card" data-asset="${a.id}"><button class="shot-image asset-image" data-open-asset="${a.id}" aria-label="Открыть ассет: ${esc(a.title)}">${assetImage(a,version)}</button><div class="shot-body"><div class="shot-meta"><span>${esc(a.category)}</span><span>ДИЗАЙН НЕ УТВЕРЖДЁН</span></div><h3>${esc(a.title)}</h3><p>${esc(a.description)}</p><span class="source-label">Задание на разработку</span><p>${esc(a.brief)}</p><div class="asset-shot-links"><span>В кадрах</span>${links}</div><a class="asset-source" href="#script/${a.scene}">Сценарий · сцена ${a.scene} ↗</a></div><div class="shot-actions"><button data-open-asset="${a.id}">Референсы: ${record.images.length}</button><button data-upload="${a.id}">+ Загрузить</button></div></article>`;
+  }).join('');
+}
+function openAsset(id,keepVersion=false){
+  currentAsset=id;const asset=assets.find(a=>a.id===id),record=assetData(id);
+  if(!keepVersion)assetVersion=record.current;
+  const version=record.images.find(v=>v.id===assetVersion);
+  $('#asset-dialog-code').textContent=asset.code;
+  $('#asset-dialog-title').textContent=asset.title;
+  $('#asset-dialog-description').textContent=asset.description;
+  $('#asset-dialog-brief').textContent=asset.brief;
+  $('#asset-dialog-image').innerHTML=assetImage(asset,version);
+  $('#asset-versions').innerHTML=record.images.map((v,i)=>`<button data-asset-version="${v.id}" class="${v.id===assetVersion?'selected':''}" aria-label="Референс ${i+1}, ${esc(v.author)}"><img src="${esc(mediaUrl(v.thumbnail))}" alt="Референс ${i+1}"></button>`).join('');
+  $('#asset-version-info').innerHTML=version?`${esc(version.author)} · ${new Date(version.createdAt).toLocaleString('ru-RU')} · ${version.width} × ${version.height}<br>${esc(version.note||'')}<br><a href="${esc(mediaUrl(version.original))}" target="_blank" rel="noopener">Открыть оригинал ↗</a> ${record.current===version.id?' · Основной референс':`<button id="asset-make-current" ${session?'':'hidden'}>Сделать основным</button>`}`:'Добавьте портреты, рисунки или фотографии. Галерея общая для команды.';
+  if(!$('#asset-dialog').open)$('#asset-dialog').showModal();
+}
+for(const type of ['dragover','dragleave','drop'])$('#asset-grid').addEventListener(type,event=>{
+  const card=event.target.closest('[data-asset]');if(!card)return;
+  if(type==='dragover'){event.preventDefault();card.classList.add('upload-drag');}
+  else if(type==='dragleave'){if(!card.contains(event.relatedTarget))card.classList.remove('upload-drag');}
+  else{event.preventDefault();card.classList.remove('upload-drag');if(event.dataTransfer.files.length)startUpload(card.dataset.asset,event.dataTransfer.files);}
+});
+document.addEventListener('click',event=>{
+  const link=event.target.closest('[data-linked-shot]');if(!link)return;
+  event.preventDefault();location.hash=link.hash;
+  // Route synchronously so the linked frame can be focused even when the hash is unchanged.
+  route();const index=currentEpisode.shots.findIndex(s=>s.id===link.dataset.linkedShot);if(index>=0)openShot(index);
+});

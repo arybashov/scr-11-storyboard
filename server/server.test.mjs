@@ -31,10 +31,19 @@ test('team uploads persist, reject invalid access/files, and share chosen versio
     assert.equal(board.shots.A01.images[0].author,'Художник');assert.equal(board.shots.A01.images[0].note,'Первый вариант');
     assert.equal((await call('/shots/A01/current',{method:'PATCH',headers,body:JSON.stringify({id:'missing'})})).status,404);
     assert.equal((await call('/shots/A01/current',{method:'PATCH',headers,body:JSON.stringify({id:second.id})})).status,200);
+    assert.equal((await call('/assets/oksana/images',{method:'POST',body:bytes})).status,401);
+    assert.equal((await call('/assets/unknown/images',{method:'POST',headers,body:bytes})).status,404);
+    const ref1=(await (await call('/assets/oksana/images',{method:'POST',headers,body:bytes})).json()).image;
+    const ref2=(await (await call('/assets/oksana/images',{method:'POST',headers,body:bytes})).json()).image;
+    assert.ok(ref1.id);assert.ok(ref2.id);
+    assert.equal((await call('/assets/oksana/current',{method:'PATCH',headers,body:JSON.stringify({id:second.id})})).status,404);
+    assert.equal((await call('/assets/oksana/current',{method:'PATCH',headers,body:JSON.stringify({id:ref2.id})})).status,200);
+    board=await(await call('/gallery')).json();assert.equal(board.assets.oksana.images.length,2);assert.equal(board.assets.oksana.current,ref2.id);assert.equal(board.shots.A01.current,second.id);
     const imageResponse=await call('/'+first.original);assert.equal(imageResponse.headers.get('content-type'),'image/png');assert.deepEqual(Buffer.from(await imageResponse.arrayBuffer()),bytes);
     const preflight=await call('/shots/A01/images',{method:'OPTIONS',headers:{Origin:'https://arybashov.github.io'}});assert.equal(preflight.status,204);assert.equal(preflight.headers.get('access-control-allow-origin'),'https://arybashov.github.io');
     await new Promise(r=>server.close(r));server=createBoardServer(options);await new Promise(r=>server.listen(0,'127.0.0.1',r));base=`http://127.0.0.1:${server.address().port}`;
     board=await(await call('/gallery')).json();assert.equal(board.shots.A01.images.length,2);assert.equal(board.shots.A01.current,second.id);
+    assert.equal(board.assets.oksana.images.length,2);assert.equal(board.assets.oksana.current,ref2.id);
     assert.equal((await call('/shots/A01/images',{method:'POST',headers,body:bytes})).status,201);
     console.log('Validated: authentication, CORS, file decoding, version selection, original bytes, persistence across restart');
   }finally{await new Promise(r=>server.close(r));fs.rmSync(dataDir,{recursive:true,force:true});}
