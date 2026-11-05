@@ -8,7 +8,7 @@ import sharp from 'sharp';
 const MAX_FILE = 15 * 1024 * 1024;
 const MAX_STORAGE = Number(process.env.MAX_STORAGE_BYTES || 1024 * 1024 * 1024);
 const TTL = 7 * 24 * 60 * 60 * 1000;
-const validShots = new Set(['T01','T02','T03','T04','T05','T06','A01','A02','A03','A04','A05','B01','B02','B03','B04','B05','C01','C02','C03','C04','C05','C06']);
+const validShots = new Set(['T01','T02','T03','T04','T05','T06','T07','T08','T09','T10','T11','T12','T13','T14','T15','A01','A02','A03','A04','A05','B01','B02','B03','B04','B05','C01','C02','C03','C04','C05','C06']);
 const validAssets = new Set(['oksana','taxi','phone','truck','highway','underpass']);
 const formats = {jpeg:'jpg',png:'png',webp:'webp'};
 const mime = {jpg:'image/jpeg',png:'image/png',webp:'image/webp'};

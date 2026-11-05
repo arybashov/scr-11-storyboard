@@ -18,6 +18,7 @@ if (session && session.expiresAt < Date.now()) session = null;
 
 // Code-native schematic panels, intentionally not presented as finished artwork.
 function sketch(type, label = '') {
+  if(type.startsWith('pilot-'))return pilotSketch(type.slice(6),label);
   const line = '#9eaf9a', light = '#d5ec8c';
   const person = (x,y,s=1,pose='still') => `<g transform="translate(${x} ${y}) scale(${s})" fill="#101813" stroke="#bac5ac" stroke-width="1.5"><ellipse cx="0" cy="-83" rx="10" ry="13"/><path d="M-10-69 Q-19-46-21-20 L19-20 Q18-47 10-69Z"/><path d="M-12-20 L-15 12 L-21 39 L-15 41 L-2 14 L3-19 M10-20 L19 8 L28 31 L34 28 L28 3 L19-20"/><path fill="none" stroke-width="5" d="${pose==='reach'?'M-12-61 L-35-42 L-53-56 M12-61 L35-48 L52-68':pose==='up'?'M-12-61 L-32-90 L-31-112 M12-61 L32-90 L34-112':'M-12-61 L-26-35 L-24-12 M12-61 L27-35 L31-14'}"/></g>`;
   const corridor = `<path fill="#29372e" d="M0 0H640L390 108H250Z"/><path fill="#202c23" d="M0 0L250 108V245L0 360Z"/><path fill="#344332" d="M640 0L390 108V245L640 360Z"/><path fill="#3c4937" d="M0 360L250 245H390L640 360Z"/><path fill="#172119" d="M250 108H390V245H250Z"/><g stroke="${line}" stroke-width="1" opacity=".65" fill="none"><path d="M0 0L250 108V245L0 360 M640 0L390 108V245L640 360 M250 108H390 M250 245H390 M0 102L250 143 M0 203L250 186 M640 102L390 143 M640 203L390 186 M0 304L250 230 M640 304L390 230 M126 0L278 108 M514 0L362 108 M84 360L278 245 M556 360L362 245 M0 312H640 M135 277H505 M218 255H422"/><path d="M87 39V320 M179 77V278 M553 39V320 M461 77V278"/></g><g fill="${light}" opacity=".85"><path d="M28 68L110 91V101L28 80Z"/><path d="M160 111L208 121V127L160 119Z"/><path d="M612 68L530 91V101L612 80Z"/><path d="M480 111L432 121V127L480 119Z"/></g><path d="M348 147H390V245H348Z" fill="#bdcba4"/><path d="M352 234H390M356 224H390M360 214H390M364 204H390M368 194H390M372 184H390M376 174H390" stroke="#485a42" stroke-width="2"/>`;
@@ -60,30 +61,10 @@ function highlighted(text, query) {
 }
 function sceneName(scene) { return scene.title.replace(/^(ИНТ\.|ЭКСТ\.)\s*/, '').replace(/\.$/,'').toLocaleLowerCase('ru'); }
 function renderScript(query = '') {
-  const filtered = screenplay.scenes.filter(s => s.paragraphs.some(p => p.text.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru'))));
-  const matched = screenplay.scenes.flatMap(s=>s.paragraphs).filter(p=>p.text.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru'))).length;
-  $('#search-result').textContent = query ? `Сцен: ${filtered.length} · совпадений в абзацах: ${matched}` : '21 сцена · 282 абзаца';
-  $('#scene-nav').innerHTML = filtered.map(s=>`<a href="#script/${s.id}"><span>${String(s.id).padStart(2,'0')}</span>${esc(sceneName(s))}</a>`).join('');
-  let html = query ? '' : `<div class="script-title"><h3>${esc(screenplay.frontmatter[0].text.trim())}</h3>${screenplay.frontmatter.slice(1).map(p=>`<p>${esc(p.text)}</p>`).join('')}</div>`;
-  for (const scene of filtered) {
-    html += `<section class="script-scene" id="scene-${scene.id}"><span class="scene-number">СЦЕНА ${String(scene.id).padStart(2,'0')}</span>`;
-    let dialogue = false;
-    scene.paragraphs.forEach((p, index)=>{
-      if (!index) {
-        html += `<h3 data-paragraph="${p.id}">${highlighted(scene.title,query)}</h3>`;
-        const rest=p.text.slice(scene.title.length);
-        if(rest.trim()) html+=`<p>${highlighted(rest,query)}</p>`;
-        return;
-      }
-      const text=p.text.trim();
-      const cue=/^(ОКСАНА|ПОДРУГА-[123]|ТАКСИСТ|ВОДИТЕЛЬ|НАВИГАТОР|ПРОФЕССОР)(\s*\([^)]*\)?)?$/u.test(text);
-      if(cue) dialogue=true;
-      else if (/^(ОКСАНА|ПОДРУГ|ТАКСИСТ|ВОДИТЕЛЬ|НА ФОТО|ПРОФЕССОР|Речь |В аудиторию|Все |Толпа |Она |Её |Лифт |Заходит |Входит |Слыш|Смотрит |Музыкальная|Звучит |Едут |Слушает )/.test(text) || text.length>115) dialogue=false;
-      html+=`<p data-paragraph="${p.id}" class="${cue?'cue':dialogue?'dialogue':''}">${highlighted(p.text,query)}</p>`;
-    });
-    html+='</section>';
-  }
-  $('#script-content').innerHTML = html || '<p class="no-results">Ничего не найдено. Попробуйте другое слово.</p>';
+  const beats=window.PILOT_BEATS.map((text,index)=>({text,number:index+1})).filter(b=>b.text.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru')));
+  $('#search-result').textContent=query?`Найдено событий: ${beats.length}`:'1 эпизод · 11 событий · 15 кадров';
+  $('#scene-nav').innerHTML=beats.map(b=>`<a href="#script/beat-${b.number}"><span>${String(b.number).padStart(2,'0')}</span>${esc(b.text.slice(0,58))}…</a>`).join('');
+  $('#script-content').innerHTML=`<section id="scene-13"><div class="script-title"><h3>ХЛОПОК ДВЕРЬЮ</h3><p>ЭКСТ. ШОССЕ — НОЧЬ. СИЛЬНЫЙ ДОЖДЬ.<br>Авторская последовательность · редакция 05.11.2026</p></div>${beats.map(b=>`<section class="script-scene" id="beat-${b.number}"><span class="scene-number">СОБЫТИЕ ${String(b.number).padStart(2,'0')}</span><p>${highlighted(b.text,query)}</p></section>`).join('')||'<p class="no-results">Ничего не найдено.</p>'}</section>`;
 }
 function renderEpisodes() {
   $('#episode-list').innerHTML=episodes.map(ep=>`<article class="episode-card"><div class="episode-art"><div class="episode-art-header"><span class="episode-code">${ep.code}</span><span>ЭПИЗОД / ${ep.scenes}</span></div>${sketch(ep.shots[2].art,ep.title)}<div class="episode-art-footer"><span>~ ${ep.duration} СЕК</span><span>${ep.shots.length} КАДРОВ</span><span>16:9</span></div></div><div class="episode-copy"><span class="tag">${esc(ep.tag)}</span><h3>${esc(ep.title)}</h3><p>${esc(ep.logline)}</p><dl><dt>Почему он</dt><dd>${esc(ep.why)}</dd><dt>В работе</dt><dd>${esc(ep.challenge)}</dd></dl><div class="episode-actions"><a class="button-primary" href="#board/${ep.id}">Открыть кадры <span>↗</span></a><a href="#script/${ep.sourceScene}">Читать сцену →</a></div></div></article>`).join('');
@@ -91,17 +72,7 @@ function renderEpisodes() {
 const shotData=id=>gallery.shots[id] || {images:[],current:null};
 const mediaUrl=path=>`${apiBase}/${path.replace(/^\//,'')}`;
 function shotSourceMarkup(shot){
-  if(!screenplay)return '<div class="shot-source"><span class="source-label">Сценарий</span><p>Загрузка авторского текста…</p></div>';
-  const refs=window.SHOT_SOURCES[shot.id]||[];
-  const pieces=refs.map(ref=>{
-    const scene=screenplay.scenes.find(s=>s.paragraphs.some(p=>p.id===ref.paragraph));
-    const paragraph=scene?.paragraphs.find(p=>p.id===ref.paragraph);
-    if(!paragraph)return null;
-    const text=ref.excerpt || (paragraph.text.startsWith(scene.title)?paragraph.text.slice(scene.title.length).trim():paragraph.text.trim());
-    return {scene:scene.id,text};
-  }).filter(Boolean);
-  if(!pieces.length)return '';
-  return `<section class="shot-source" aria-label="Текст сценария для кадра ${shot.id}"><div class="source-heading"><span class="source-label">Текст сценария</span><a href="#script/${pieces[0].scene}">Сцена ${String(pieces[0].scene).padStart(2,'0')} ↗</a></div><blockquote>${pieces.map(p=>`<p>${esc(p.text)}</p>`).join('')}</blockquote></section>`;
+  return `<section class="shot-source" aria-label="Текст сценария для кадра ${shot.id}"><div class="source-heading"><span class="source-label">Текст сценария · новая редакция</span><a href="#script/beat-${shot.step}">Событие ${shot.step} / 11 ↗</a></div><blockquote><p>${esc(shot.script)}</p></blockquote></section>`;
 }
 function imageMarkup(shot, version) { return version ? `<img src="${esc(mediaUrl(version.thumbnail))}" alt="${esc(shot.id+' — '+shot.title)}" loading="lazy">` : sketch(shot.art,shot.title); }
 function renderBoard() {
@@ -114,7 +85,7 @@ function renderBoard() {
   $('#shot-grid').innerHTML=currentEpisode.shots.map((shot,index)=>{
     const start=time;time+=shot.duration;
     const record=shotData(shot.id), active=record.images.find(i=>i.id===record.current);
-    return `<article class="shot-card" data-shot="${shot.id}"><button class="shot-image" data-open-shot="${index}" aria-label="Открыть кадр ${shot.id}: ${esc(shot.title)}">${imageMarkup(shot,active)}<span class="shot-id">${shot.id}</span><span class="shot-expand">↗</span></button><div class="shot-body"><div class="shot-meta"><span>${String(start).padStart(2,'0')}–${String(time).padStart(2,'0')} СЕК</span><span>${esc(shot.size.toUpperCase())}</span></div><h3>${esc(shot.title)}</h3>${shotSourceMarkup(shot)}<span class="source-label staging-label">Постановочное описание</span><p>${esc(shot.action)}</p><dl><dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd></dl></div><div class="shot-actions"><span class="version-count">${record.images.length ? `ВЕРСИЙ: ${record.images.length}` : 'СХЕМА · НЕТ ЗАГРУЗОК'}</span><button data-upload="${shot.id}">+ Загрузить</button></div></article>`;
+    return `<article class="shot-card" data-shot="${shot.id}"><button class="shot-image" data-open-shot="${index}" aria-label="Открыть кадр ${shot.id}: ${esc(shot.title)}">${imageMarkup(shot,active)}<span class="shot-id">${shot.id}</span><span class="shot-expand">↗</span></button><div class="shot-body"><div class="shot-meta"><span>${String(start).padStart(2,'0')}–${String(time).padStart(2,'0')} СЕК</span><span>${esc(shot.size.toUpperCase())}</span></div><h3>${esc(shot.title)}</h3>${shotSourceMarkup(shot)}<span class="source-label staging-label">Постановочное описание</span><p>${esc(shot.action)}</p><dl><dt>Крупность</dt><dd>${esc(shot.size)}</dd><dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd></dl></div><div class="shot-actions"><span class="version-count">${record.images.length ? `ВЕРСИЙ: ${record.images.length}` : 'СХЕМА · НЕТ ЗАГРУЗОК'}</span><button data-upload="${shot.id}">+ Загрузить</button></div></article>`;
   }).join('');
   renderTimeline();
 }
@@ -134,7 +105,7 @@ function route() {
   if(valid==='script'&&id&&screenplay){
     $('#script-search').value='';renderScript();
     $$('#scene-nav a').forEach(a=>a.classList.toggle('active',a.hash===`#script/${id}`));
-    requestAnimationFrame(()=>document.getElementById(`scene-${id}`)?.scrollIntoView({behavior:'instant'}));
+    requestAnimationFrame(()=>document.getElementById(id.startsWith('beat-')?id:`scene-${id}`)?.scrollIntoView({behavior:'instant'}));
   }
 }
 function timecode(seconds){const whole=Math.floor(seconds);return `${String(Math.floor(whole/60)).padStart(2,'0')}:${String(whole%60).padStart(2,'0')}`;}
@@ -193,7 +164,7 @@ function openShot(index, keepVersion=false) {
   $('#dialog-title').textContent=shot.title;
   $('#dialog-action').textContent=shot.action;
   $('#dialog-script').innerHTML=shotSourceMarkup(shot);
-  $('#dialog-details').innerHTML=`<dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd><dt>Задача кадра</dt><dd>${esc(shot.purpose)}</dd><dt>Длительность</dt><dd>~ ${shot.duration} сек</dd>`;
+  $('#dialog-details').innerHTML=`<dt>Крупность</dt><dd>${esc(shot.size)}</dd><dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd><dt>Задача кадра</dt><dd>${esc(shot.purpose)}</dd><dt>Длительность</dt><dd>~ ${shot.duration} сек</dd>`;
   $('#dialog-versions').innerHTML=`<button class="scheme-version ${!version?'selected':''}" data-version="" aria-label="Показать схему">Схема</button>`+record.images.map((v,i)=>`<button class="${v.id===selectedVersion?'selected':''}" data-version="${v.id}" aria-label="Версия ${i+1}, ${esc(v.author)}"><img src="${esc(mediaUrl(v.thumbnail))}" alt="Версия ${i+1}"></button>`).join('');
   $('#dialog-version-info').innerHTML=version ? `${esc(version.author)} · ${new Date(version.createdAt).toLocaleString('ru-RU')} · ${version.width} × ${version.height}${version.note?'<br>'+esc(version.note):''}<br><a href="${esc(mediaUrl(version.original))}" target="_blank" rel="noopener">Открыть оригинал ↗</a> ${record.current===version.id?'<span> · Основной кадр</span>':`<button id="make-current" ${session?'':'hidden'}>Сделать основным</button>`}` : 'Композиционная схема. Загрузите рисунок или референс через кнопку на карточке.';
   $('#dialog-prev').disabled=currentShot===0;$('#dialog-next').disabled=currentShot===currentEpisode.shots.length-1;
@@ -303,8 +274,7 @@ $('#animatic-dialog').addEventListener('keydown',event=>{
   if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();const current=shotAt(animatic.time),target=event.key==='ArrowLeft'?Math.max(0,current.index-1):Math.min(currentEpisode.shots.length-1,current.index+1);seekAnimatic(currentEpisode.shots.slice(0,target).reduce((sum,s)=>sum+s.duration,0));}
 });
 window.addEventListener('hashchange',route);
-$('#hero-sketch').innerHTML=sketch('corridor');renderEpisodes();updateTeam();route();
-fetch('data/screenplay.json').then(r=>{if(!r.ok)throw new Error('Сценарий недоступен');return r.json();}).then(data=>{screenplay=data;renderScript();route();}).catch(()=>{$('#script-content').innerHTML='<p>Не удалось загрузить текст. <a href="source/SCR-11-Underground-Crossing.docx">Скачать исходный DOCX</a></p>';});
+$('#hero-sketch').innerHTML=sketch('pilot-exit');screenplay=true;renderScript();renderEpisodes();updateTeam();route();
 setInterval(()=>{if(!document.hidden&&(!$('#view-board').hidden||!$('#view-assets').hidden))refreshGallery();},15000);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseAnimatic();else if((!$('#view-board').hidden||!$('#view-assets').hidden))refreshGallery();});
 
