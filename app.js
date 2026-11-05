@@ -4,7 +4,7 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const episodes = window.EPISODES;
 const apiBase = window.KINO_CONFIG.apiBase.replace(/\/$/, '');
-let screenplay, currentEpisode = episodes[0], currentShot = 0, selectedVersion = null;
+let screenplay, currentEpisode = episodes[0], currentShot = 0, currentPhase = 0, selectedVersion = null;
 let gallery = {revision: -1, shots: {}}, pendingUpload = null, uploadTarget = null, galleryRequest = false;
 let session = null;
 let lastView = null;
@@ -62,7 +62,7 @@ function highlighted(text, query) {
 function sceneName(scene) { return scene.title.replace(/^(ИНТ\.|ЭКСТ\.)\s*/, '').replace(/\.$/,'').toLocaleLowerCase('ru'); }
 function renderScript(query = '') {
   const beats=window.PILOT_BEATS.map((text,index)=>({text,number:index+1})).filter(b=>b.text.toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru')));
-  $('#search-result').textContent=query?`Найдено событий: ${beats.length}`:'1 эпизод · 11 событий · 15 кадров';
+  $('#search-result').textContent=query?`Найдено событий: ${beats.length}`:'1 эпизод · 11 событий · 13 кадров';
   $('#scene-nav').innerHTML=beats.map(b=>`<a href="#script/beat-${b.number}"><span>${String(b.number).padStart(2,'0')}</span>${esc(b.text.slice(0,58))}…</a>`).join('');
   $('#script-content').innerHTML=`<section id="scene-13"><div class="script-title"><h3>ХЛОПОК ДВЕРЬЮ</h3><p>ЭКСТ. ШОССЕ — НОЧЬ. СИЛЬНЫЙ ДОЖДЬ.<br>Авторская последовательность · редакция 05.11.2026</p></div>${beats.map(b=>`<section class="script-scene" id="beat-${b.number}"><span class="scene-number">СОБЫТИЕ ${String(b.number).padStart(2,'0')}</span><p>${highlighted(b.text,query)}</p></section>`).join('')||'<p class="no-results">Ничего не найдено.</p>'}</section>`;
 }
@@ -72,7 +72,21 @@ function renderEpisodes() {
 const shotData=id=>gallery.shots[id] || {images:[],current:null};
 const mediaUrl=path=>`${apiBase}/${path.replace(/^\//,'')}`;
 function shotSourceMarkup(shot){
-  return `<section class="shot-source" aria-label="Текст сценария для кадра ${shot.id}"><div class="source-heading"><span class="source-label">Текст сценария · новая редакция</span><a href="#script/beat-${shot.step}">Событие ${shot.step} / 11 ↗</a></div><blockquote><p>${esc(shot.script)}</p></blockquote></section>`;
+  return `<section class="shot-source" aria-label="Текст сценария для кадра ${shot.id}">${(shot.phases||[shot]).map(p=>`<div class="source-heading"><span class="source-label">Текст сценария · новая редакция</span><a href="#script/beat-${p.step}">Событие ${p.step} / 11 ↗</a></div><blockquote><p>${esc(p.script)}</p></blockquote>`).join('')}</section>`;
+}
+function phaseAt(shot,elapsed){
+  const phases=shot.phases||[shot];let start=0;
+  for(let index=0;index<phases.length;index++){
+    const phase=phases[index],end=Math.round((start+phase.duration)*100)/100;
+    if(elapsed<end||index===phases.length-1)return {phase,index,start};start=end;
+  }
+}
+function dialogPhase(){const shot=currentEpisode.shots[currentShot];return shot.phases?.[currentPhase]||shot;}
+function currentImage(shot){const record=shotData(shot.id);return imageMarkup(shot,record.images.find(v=>v.id===record.current));}
+function boardImage(shot){
+  if(!shot.phases)return currentImage(shot);
+  let start=0;
+  return `<span class="compound-pictures">${shot.phases.map(p=>{const from=start;start=Math.round((start+p.duration)*100)/100;return `<span class="phase-picture">${currentImage(p)}<span class="phase-caption">${p.label} · ${esc(p.size)} · ${from.toLocaleString('ru-RU')}–${start.toLocaleString('ru-RU')} с</span></span>`;}).join('')}</span>`;
 }
 function imageMarkup(shot, version) { return version ? `<img src="${esc(mediaUrl(version.thumbnail))}" alt="${esc(shot.id+' — '+shot.title)}" loading="lazy">` : sketch(shot.art,shot.title); }
 function renderBoard() {
@@ -85,7 +99,7 @@ function renderBoard() {
   $('#shot-grid').innerHTML=currentEpisode.shots.map((shot,index)=>{
     const start=time;time=Math.round((time+shot.duration)*100)/100;
     const record=shotData(shot.id), active=record.images.find(i=>i.id===record.current);
-    return `<article class="shot-card" data-shot="${shot.id}"><button class="shot-image" data-open-shot="${index}" aria-label="Открыть кадр ${shot.id}: ${esc(shot.title)}">${imageMarkup(shot,active)}<span class="shot-id">${shot.id}</span><span class="shot-expand">↗</span></button><div class="shot-body"><div class="shot-meta"><span>${start.toLocaleString('ru-RU')}–${time.toLocaleString('ru-RU')} СЕК</span><span>${esc(shot.size.toUpperCase())}</span></div><h3>${esc(shot.title)}</h3>${shotSourceMarkup(shot)}<span class="source-label staging-label">Постановочное описание</span><p>${esc(shot.action)}</p><dl><dt>Крупность</dt><dd>${esc(shot.size)}</dd><dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd></dl></div><div class="shot-actions"><span class="version-count">${record.images.length ? `ВЕРСИЙ: ${record.images.length}` : 'СХЕМА · НЕТ ЗАГРУЗОК'}</span><button data-upload="${shot.id}">+ Загрузить</button></div></article>`;
+    return `<article class="shot-card ${shot.phases?'compound-shot':''}" data-shot="${shot.id}"><button class="shot-image" data-open-shot="${index}" aria-label="Открыть кадр ${shot.id}: ${esc(shot.title)}">${boardImage(shot)}<span class="shot-id">${shot.id}</span><span class="shot-expand">↗</span></button><div class="shot-body"><div class="shot-meta"><span>${start.toLocaleString('ru-RU')}–${time.toLocaleString('ru-RU')} СЕК</span><span>${esc(shot.size.toUpperCase())}</span></div><h3>${esc(shot.title)}</h3>${shot.phases?'<p class="continuous-note">ОДИН КАДР · ДВЕ ФАЗЫ · БЕЗ СКЛЕЙКИ</p>':''}${shotSourceMarkup(shot)}<details class="shot-staging"><summary>Постановка, камера и звук</summary><p>${esc(shot.action)}</p><dl><dt>Крупность</dt><dd>${esc(shot.size)}</dd><dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd></dl></details></div><div class="shot-actions">${shot.phases?shot.phases.map((p,i)=>`<div class="phase-action"><button data-open-phase="${i}" data-shot-index="${index}">${p.label} · версии: ${shotData(p.id).images.length}</button><button data-upload="${p.id}">+ Загрузить фазу ${i+1}</button></div>`).join(''):`<span class="version-count">${record.images.length ? `ВЕРСИЙ: ${record.images.length}` : 'СХЕМА · НЕТ ЗАГРУЗОК'}</span><button data-upload="${shot.id}">+ Загрузить</button>`}</div></article>`;
   }).join('');
   renderTimeline();
 }
@@ -114,33 +128,33 @@ function renderTimeline(){
   if(animatic.episode!==currentEpisode.id){pauseAnimatic();animatic.time=0;animatic.episode=currentEpisode.id;animatic.shown=null;}
   $('#timeline-episode').textContent=currentEpisode.title;
   $('#animatic-title').textContent=`АНИМАТИК / ${currentEpisode.title}`;
-  const total=currentEpisode.shots.reduce((sum,s)=>sum+s.duration,0);
+  const total=currentEpisode.duration;
   for(const range of [$('#dock-seek'),$('#player-seek')])range.max=total;
   let start=0;
   const strip=currentEpisode.shots.map(shot=>{
     const pos=start;start=Math.round((start+shot.duration)*100)/100;const record=shotData(shot.id),version=record.images.find(v=>v.id===record.current);
-    return `<button class="timeline-clip" data-time="${pos}" data-clip-id="${shot.id}" style="flex:${shot.duration}" aria-label="${shot.id}: ${esc(shot.title)}, с ${pos} секунды, ${shot.duration} секунд"><span class="clip-picture">${imageMarkup(shot,version)}</span><span class="clip-label">${shot.id}<span>${shot.duration}с</span></span></button>`;
+    return `<button class="timeline-clip" data-time="${pos}" data-clip-id="${shot.id}" style="flex:${shot.duration}" aria-label="${shot.id}: ${esc(shot.title)}, с ${pos} секунды, ${shot.duration} секунд"><span class="clip-picture">${boardImage(shot)}</span><span class="clip-label">${shot.id}${shot.phases?' · 2 фазы':''}<span>${shot.duration}с</span></span></button>`;
   }).join('');
   $('#dock-strip').innerHTML=strip;$('#player-strip').innerHTML=strip;updateAnimatic(true);
 }
 function updateAnimatic(force=false){
-  const total=currentEpisode.shots.reduce((sum,s)=>sum+s.duration,0),{shot}=shotAt(animatic.time),record=shotData(shot.id),version=record.images.find(v=>v.id===record.current);
+  const total=currentEpisode.duration,{shot,start}=shotAt(animatic.time),{phase,index:phaseIndex}=phaseAt(shot,Math.round((animatic.time-start)*1000)/1000),record=shotData(phase.id),version=record.images.find(v=>v.id===record.current);
   const clock=`${timecode(animatic.time)} / ${timecode(total)}`;
   $('#dock-time').textContent=clock;$('#player-time').textContent=clock;
   for(const range of [$('#dock-seek'),$('#player-seek')]){range.value=animatic.time;range.style.setProperty('--progress',`${animatic.time/total*100}%`);range.setAttribute('aria-valuetext',`${timecode(animatic.time)}, кадр ${shot.id}`);}
   $$('.timeline-clip').forEach(button=>{const active=button.dataset.clipId===shot.id;button.classList.toggle('current',active);button.setAttribute('aria-pressed',String(active));});
   $('#animatic-play').textContent=animatic.playing?'Ⅱ':'▶';$('#animatic-play').setAttribute('aria-label',animatic.playing?'Пауза':'Воспроизвести');
-  const key=shot.id+':'+(version?.id||'scheme');
+  const key=shot.id+':'+phase.id+':'+(version?.id||'scheme');
   if(force||animatic.shown!==key){
-    $('#animatic-stage').innerHTML=imageMarkup(shot,version);
-    $('#animatic-shot-title').textContent=`${shot.id} / ${shot.title}`;
-    $('#animatic-shot-size').textContent=`${shot.size} · ${shot.duration} сек`;
+    $('#animatic-stage').innerHTML=imageMarkup(phase,version);
+    $('#animatic-shot-title').textContent=`${shot.id} / ${shot.title}${shot.phases?' · ФАЗА '+(phaseIndex+1)+'/'+shot.phases.length+' · ОДИН КАДР':''}`;
+    $('#animatic-shot-size').textContent=`${phase.size} · ${shot.duration} сек${shot.phases?' · опорная фаза без склейки':''}`;
     animatic.shown=key;
   }
 }
 function pauseAnimatic(){animatic.playing=false;if(animatic.frame!==null)cancelAnimationFrame(animatic.frame);animatic.frame=null;if($('#animatic-play')){$('#animatic-play').textContent='▶';$('#animatic-play').setAttribute('aria-label','Воспроизвести');}}
 function playAnimatic(){
-  const total=currentEpisode.shots.reduce((sum,s)=>sum+s.duration,0);
+  const total=currentEpisode.duration;
   if(animatic.time>=total)animatic.time=0;
   if(animatic.playing)return;
   animatic.playing=true;animatic.last=performance.now();
@@ -154,13 +168,17 @@ function playAnimatic(){
 }
 function openAnimatic(play=true){if(!$('#animatic-dialog').open)$('#animatic-dialog').showModal();updateAnimatic(true);if(play)playAnimatic();}
 function seekAnimatic(time){animatic.time=Math.max(0,Math.min(Number($('#player-seek').max),Math.round(Number(time)*100)/100));animatic.last=performance.now();updateAnimatic();}
-function openShot(index, keepVersion=false) {
+function openShot(index, keepVersion=false, phaseIndex=null) {
   currentShot=Math.max(0,Math.min(currentEpisode.shots.length-1,index));
-  const shot=currentEpisode.shots[currentShot], record=shotData(shot.id);
+  const shot=currentEpisode.shots[currentShot];
+  if(phaseIndex!==null)currentPhase=phaseIndex;else if(!keepVersion)currentPhase=0;
+  const phase=dialogPhase(),record=shotData(phase.id);
   if(!keepVersion)selectedVersion=record.current;
   const version=record.images.find(i=>i.id===selectedVersion);
   $('#dialog-counter').textContent=`${shot.id} / ${currentEpisode.title} / ${currentShot+1} ИЗ ${currentEpisode.shots.length}`;
-  $('#dialog-image').innerHTML=imageMarkup(shot,version);
+  $('#dialog-phases').innerHTML=shot.phases?`<span>ОДИН КАДР · БЕЗ СКЛЕЙКИ</span>`+shot.phases.map((p,i)=>`<button data-open-phase="${i}" data-shot-index="${currentShot}" aria-pressed="${i===currentPhase}">${p.label} · ${esc(p.title)} · ${p.duration} с</button>`).join(''):'';
+  $('#dialog-phases').hidden=!shot.phases;
+  $('#dialog-image').innerHTML=imageMarkup(phase,version);
   $('#dialog-title').textContent=shot.title;
   $('#dialog-action').textContent=shot.action;
   $('#dialog-script').innerHTML=shotSourceMarkup(shot);
@@ -220,6 +238,7 @@ document.addEventListener('click', async event=>{
   }
   const close=event.target.closest('[data-close]');if(close)document.getElementById(close.dataset.close).close();
   const ep=event.target.closest('[data-episode]');if(ep)location.hash=`board/${ep.dataset.episode}`;
+  const phaseButton=event.target.closest('[data-open-phase]');if(phaseButton)openShot(Number(phaseButton.dataset.shotIndex),false,Number(phaseButton.dataset.openPhase));
   const shot=event.target.closest('[data-open-shot]');if(shot)openShot(Number(shot.dataset.openShot));
   const upload=event.target.closest('[data-upload]');if(upload)startUpload(upload.dataset.upload);
   const version=event.target.closest('[data-version]');if(version){selectedVersion=version.dataset.version||null;openShot(currentShot,true);}
@@ -227,7 +246,7 @@ document.addEventListener('click', async event=>{
   const clip=event.target.closest('[data-time]');if(clip){seekAnimatic(clip.dataset.time);if(!$('#animatic-dialog').open)openAnimatic(false);}
   if(event.target.closest('#make-current')){
     const button=$('#make-current');button.disabled=true;
-    try{await request(`/shots/${currentEpisode.shots[currentShot].id}/current`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:selectedVersion})});await refreshGallery();}
+    try{await request(`/shots/${dialogPhase().id}/current`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:selectedVersion})});await refreshGallery();}
     catch(error){button.disabled=false;button.textContent=error.message;}
   }
 });
