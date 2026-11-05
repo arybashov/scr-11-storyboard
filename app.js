@@ -109,7 +109,7 @@ function route() {
   }
 }
 function timecode(seconds){const whole=Math.floor(seconds);return `${String(Math.floor(whole/60)).padStart(2,'0')}:${String(whole%60).padStart(2,'0')}`;}
-function shotAt(time){let start=0;for(let i=0;i<currentEpisode.shots.length;i++){const shot=currentEpisode.shots[i];if(time<start+shot.duration||i===currentEpisode.shots.length-1)return{shot,index:i,start};start+=shot.duration;}}
+function shotAt(time){let start=0;for(let i=0;i<currentEpisode.shots.length;i++){const shot=currentEpisode.shots[i];if(time<start+shot.duration||i===currentEpisode.shots.length-1)return{shot,index:i,start};start=Math.round((start+shot.duration)*100)/100;}}
 function renderTimeline(){
   if(animatic.episode!==currentEpisode.id){pauseAnimatic();animatic.time=0;animatic.episode=currentEpisode.id;animatic.shown=null;}
   $('#timeline-episode').textContent=currentEpisode.title;
@@ -153,7 +153,7 @@ function playAnimatic(){
   updateAnimatic();animatic.frame=requestAnimationFrame(step);
 }
 function openAnimatic(play=true){if(!$('#animatic-dialog').open)$('#animatic-dialog').showModal();updateAnimatic(true);if(play)playAnimatic();}
-function seekAnimatic(time){animatic.time=Math.max(0,Math.min(Number($('#player-seek').max),Number(time)));animatic.last=performance.now();updateAnimatic();}
+function seekAnimatic(time){animatic.time=Math.max(0,Math.min(Number($('#player-seek').max),Math.round(Number(time)*100)/100));animatic.last=performance.now();updateAnimatic();}
 function openShot(index, keepVersion=false) {
   currentShot=Math.max(0,Math.min(currentEpisode.shots.length-1,index));
   const shot=currentEpisode.shots[currentShot], record=shotData(shot.id);
