@@ -81,7 +81,7 @@ export function createBoardServer(options = {}) {
         const encoded=Buffer.from(JSON.stringify(payload)).toString('base64url');
         reply(200,{...payload,token:encoded+'.'+sign(encoded)});return;
       }
-      const route=url.pathname.match(/^\/shots\/([A-C]\d{2})\/(images|current)$/);
+      const route=url.pathname.match(/^\/shots\/([ABCT]\d{2})\/(images|current)$/);
       if(route&&validShots.has(route[1])){
         const auth=authenticate(req);
         if(!auth){req.resume();reply(401,{error:'Войдите в команду по коду проекта'});return;}

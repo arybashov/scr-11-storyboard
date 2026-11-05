@@ -82,7 +82,11 @@ for attempt in 1 2 3 4 5; do
 done
 curl -fsS http://127.0.0.1:8792/health
 systemctl reload nginx
-curl -fsS https://yui.com.ru/kino-api/health
+for attempt in 1 2 3 4 5; do
+  if curl -fsS https://yui.com.ru/kino-api/health | grep -q 'kino-storyboard'; then break; fi
+  sleep 1
+done
+curl -fsS https://yui.com.ru/kino-api/health | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d["service"]=="kino-storyboard" and d["ok"]; print("Public API healthy")'
 printf '\\n'
 systemctl is-active kino-board
 curl -fsS http://127.0.0.1:8790/health

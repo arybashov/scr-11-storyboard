@@ -8,6 +8,7 @@ let screenplay, currentEpisode = episodes[0], currentShot = 0, selectedVersion =
 let gallery = {revision: -1, shots: {}}, pendingUpload = null, uploadTarget = null, galleryRequest = false;
 let session = null;
 let lastView = null;
+const animatic = {time:0,playing:false,last:0,frame:null,episode:null,shown:null};
 try { session = JSON.parse(sessionStorage.getItem('kino-session')); } catch {}
 if (session && session.expiresAt < Date.now()) session = null;
 
@@ -93,11 +94,14 @@ function renderBoard() {
     const record=shotData(shot.id), active=record.images.find(i=>i.id===record.current);
     return `<article class="shot-card" data-shot="${shot.id}"><button class="shot-image" data-open-shot="${index}" aria-label="Открыть кадр ${shot.id}: ${esc(shot.title)}">${imageMarkup(shot,active)}<span class="shot-id">${shot.id}</span><span class="shot-expand">↗</span></button><div class="shot-body"><div class="shot-meta"><span>${String(start).padStart(2,'0')}–${String(time).padStart(2,'0')} СЕК</span><span>${esc(shot.size.toUpperCase())}</span></div><h3>${esc(shot.title)}</h3><p>${esc(shot.action)}</p><dl><dt>Камера</dt><dd>${esc(shot.camera)}</dd><dt>Звук</dt><dd>${esc(shot.sound)}</dd></dl></div><div class="shot-actions"><span class="version-count">${record.images.length ? `ВЕРСИЙ: ${record.images.length}` : 'СХЕМА · НЕТ ЗАГРУЗОК'}</span><button data-upload="${shot.id}">+ Загрузить</button></div></article>`;
   }).join('');
+  renderTimeline();
 }
 function route() {
   const [view='script',id] = location.hash.slice(1).split('/');
   const valid = ['script','episodes','board'].includes(view) ? view : 'script';
   const changedView = lastView !== valid; lastView = valid;
+  document.body.classList.toggle('board-open',valid==='board');
+  pauseAnimatic();
   $$('.view').forEach(el=>{el.hidden=el.id!==`view-${valid}`;});
   $$('.main-nav a').forEach(a=>{a.classList.toggle('active',a.dataset.view===valid);if(a.dataset.view===valid)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   if(valid==='board') { currentEpisode=episodes.find(e=>e.id===id)||episodes[0];renderBoard();refreshGallery(); }
@@ -108,6 +112,52 @@ function route() {
     requestAnimationFrame(()=>document.getElementById(`scene-${id}`)?.scrollIntoView({behavior:'instant'}));
   }
 }
+function timecode(seconds){const whole=Math.floor(seconds);return `${String(Math.floor(whole/60)).padStart(2,'0')}:${String(whole%60).padStart(2,'0')}`;}
+function shotAt(time){let start=0;for(let i=0;i<currentEpisode.shots.length;i++){const shot=currentEpisode.shots[i];if(time<start+shot.duration||i===currentEpisode.shots.length-1)return{shot,index:i,start};start+=shot.duration;}}
+function renderTimeline(){
+  if(animatic.episode!==currentEpisode.id){pauseAnimatic();animatic.time=0;animatic.episode=currentEpisode.id;animatic.shown=null;}
+  $('#timeline-episode').textContent=currentEpisode.title;
+  $('#animatic-title').textContent=`АНИМАТИК / ${currentEpisode.title}`;
+  const total=currentEpisode.shots.reduce((sum,s)=>sum+s.duration,0);
+  for(const range of [$('#dock-seek'),$('#player-seek')])range.max=total;
+  let start=0;
+  const strip=currentEpisode.shots.map(shot=>{
+    const pos=start;start+=shot.duration;const record=shotData(shot.id),version=record.images.find(v=>v.id===record.current);
+    return `<button class="timeline-clip" data-time="${pos}" data-clip-id="${shot.id}" style="flex:${shot.duration}" aria-label="${shot.id}: ${esc(shot.title)}, с ${pos} секунды, ${shot.duration} секунд"><span class="clip-picture">${imageMarkup(shot,version)}</span><span class="clip-label">${shot.id}<span>${shot.duration}с</span></span></button>`;
+  }).join('');
+  $('#dock-strip').innerHTML=strip;$('#player-strip').innerHTML=strip;updateAnimatic(true);
+}
+function updateAnimatic(force=false){
+  const total=currentEpisode.shots.reduce((sum,s)=>sum+s.duration,0),{shot}=shotAt(animatic.time),record=shotData(shot.id),version=record.images.find(v=>v.id===record.current);
+  const clock=`${timecode(animatic.time)} / ${timecode(total)}`;
+  $('#dock-time').textContent=clock;$('#player-time').textContent=clock;
+  for(const range of [$('#dock-seek'),$('#player-seek')]){range.value=animatic.time;range.style.setProperty('--progress',`${animatic.time/total*100}%`);range.setAttribute('aria-valuetext',`${timecode(animatic.time)}, кадр ${shot.id}`);}
+  $$('.timeline-clip').forEach(button=>{const active=button.dataset.clipId===shot.id;button.classList.toggle('current',active);button.setAttribute('aria-pressed',String(active));});
+  $('#animatic-play').textContent=animatic.playing?'Ⅱ':'▶';$('#animatic-play').setAttribute('aria-label',animatic.playing?'Пауза':'Воспроизвести');
+  const key=shot.id+':'+(version?.id||'scheme');
+  if(force||animatic.shown!==key){
+    $('#animatic-stage').innerHTML=imageMarkup(shot,version);
+    $('#animatic-shot-title').textContent=`${shot.id} / ${shot.title}`;
+    $('#animatic-shot-size').textContent=`${shot.size} · ${shot.duration} сек`;
+    animatic.shown=key;
+  }
+}
+function pauseAnimatic(){animatic.playing=false;if(animatic.frame!==null)cancelAnimationFrame(animatic.frame);animatic.frame=null;if($('#animatic-play')){$('#animatic-play').textContent='▶';$('#animatic-play').setAttribute('aria-label','Воспроизвести');}}
+function playAnimatic(){
+  const total=currentEpisode.shots.reduce((sum,s)=>sum+s.duration,0);
+  if(animatic.time>=total)animatic.time=0;
+  if(animatic.playing)return;
+  animatic.playing=true;animatic.last=performance.now();
+  function step(now){
+    if(!animatic.playing)return;
+    animatic.time=Math.min(total,animatic.time+(now-animatic.last)/1000);animatic.last=now;
+    if(animatic.time>=total)pauseAnimatic();
+    updateAnimatic();if(animatic.playing)animatic.frame=requestAnimationFrame(step);
+  }
+  updateAnimatic();animatic.frame=requestAnimationFrame(step);
+}
+function openAnimatic(play=true){if(!$('#animatic-dialog').open)$('#animatic-dialog').showModal();updateAnimatic(true);if(play)playAnimatic();}
+function seekAnimatic(time){animatic.time=Math.max(0,Math.min(Number($('#player-seek').max),Number(time)));animatic.last=performance.now();updateAnimatic();}
 function openShot(index, keepVersion=false) {
   currentShot=Math.max(0,Math.min(currentEpisode.shots.length-1,index));
   const shot=currentEpisode.shots[currentShot], record=shotData(shot.id);
@@ -166,6 +216,8 @@ document.addEventListener('click', async event=>{
   const shot=event.target.closest('[data-open-shot]');if(shot)openShot(Number(shot.dataset.openShot));
   const upload=event.target.closest('[data-upload]');if(upload)startUpload(upload.dataset.upload);
   const version=event.target.closest('[data-version]');if(version){selectedVersion=version.dataset.version||null;openShot(currentShot,true);}
+  if(event.target.closest('[data-animatic-open]'))openAnimatic();
+  const clip=event.target.closest('[data-time]');if(clip){seekAnimatic(clip.dataset.time);if(!$('#animatic-dialog').open)openAnimatic(false);}
   if(event.target.closest('#make-current')){
     const button=$('#make-current');button.disabled=true;
     try{await request(`/shots/${currentEpisode.shots[currentShot].id}/current`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:selectedVersion})});await refreshGallery();}
@@ -205,8 +257,17 @@ $('#shot-dialog').addEventListener('keydown',event=>{if(event.key==='ArrowLeft')
 $$('dialog').forEach(d=>d.addEventListener('click',event=>{if(event.target===d){const r=d.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)d.close();}}));
 $('#script-search').addEventListener('input',event=>{if(screenplay)renderScript(event.target.value.trim());});
 $('#print-board').addEventListener('click',()=>window.print());
+$('#animatic-play').addEventListener('click',()=>{if(animatic.playing)pauseAnimatic();else playAnimatic();});
+$('#animatic-restart').addEventListener('click',()=>seekAnimatic(0));
+for(const range of [$('#dock-seek'),$('#player-seek')])range.addEventListener('input',event=>seekAnimatic(event.target.value));
+$('#animatic-dialog').addEventListener('close',pauseAnimatic);
+$('#animatic-dialog').addEventListener('keydown',event=>{
+  if(event.target.matches('input'))return;
+  if(event.code==='Space'){event.preventDefault();if(animatic.playing)pauseAnimatic();else playAnimatic();}
+  if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();const current=shotAt(animatic.time),target=event.key==='ArrowLeft'?Math.max(0,current.index-1):Math.min(currentEpisode.shots.length-1,current.index+1);seekAnimatic(currentEpisode.shots.slice(0,target).reduce((sum,s)=>sum+s.duration,0));}
+});
 window.addEventListener('hashchange',route);
 $('#hero-sketch').innerHTML=sketch('corridor');renderEpisodes();updateTeam();route();
 fetch('data/screenplay.json').then(r=>{if(!r.ok)throw new Error('Сценарий недоступен');return r.json();}).then(data=>{screenplay=data;renderScript();route();}).catch(()=>{$('#script-content').innerHTML='<p>Не удалось загрузить текст. <a href="source/SCR-11-Underground-Crossing.docx">Скачать исходный DOCX</a></p>';});
 setInterval(()=>{if(!document.hidden&&!$('#view-board').hidden)refreshGallery();},15000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!$('#view-board').hidden)refreshGallery();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseAnimatic();else if(!$('#view-board').hidden)refreshGallery();});

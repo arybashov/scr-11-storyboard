@@ -23,6 +23,7 @@ test('team uploads persist, reject invalid access/files, and share chosen versio
     assert.equal((await call('/shots/A01/images',{method:'POST',headers,body:Buffer.from('<svg/>')})).status,415);
     assert.equal((await call('/shots/Z99/images',{method:'POST',headers,body:'bad'})).status,404);
     const bytes=await sharp({create:{width:80,height:45,channels:3,background:'#88aa66'}}).png().toBuffer();
+    assert.equal((await call('/shots/T02/images',{method:'POST',headers,body:bytes})).status,201);
     const uploaded=await call('/shots/A01/images',{method:'POST',headers,body:bytes});
     assert.equal(uploaded.status,201);const first=(await uploaded.json()).image;
     const second=(await (await call('/shots/A01/images',{method:'POST',headers,body:bytes})).json()).image;
