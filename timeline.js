@@ -1,8 +1,8 @@
-import {round,defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart} from './server/timeline-model.mjs?v=20261105-20';
+import {round,defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart} from './server/timeline-model.mjs?v=20261107-sequence';
 async function initTimeline(){
-const library=await fetch('server/sound-library.json?v=20261105-20').then(r=>{if(!r.ok)throw new Error('Библиотека звуков недоступна');return r.json();});
-const original=structuredClone(currentEpisode),defaults=defaultTimeline(original),draftKey='kino-taxi-timeline-v1';
-let state=structuredClone(defaults),revision=0,dirty=false,selected={type:'shot',id:'T01'},history=[],future=[],zoom=55,drag=null,saving=false,remote=null,notice=null;
+const library=await fetch('server/sound-library.json?v=20261107-sequence').then(r=>{if(!r.ok)throw new Error('Библиотека звуков недоступна');return r.json();});
+const original=structuredClone(currentEpisode),defaults=defaultTimeline(original),draftKey='kino-full-sequence-timeline-v2';
+let state=structuredClone(defaults),revision=0,dirty=false,selected={type:'shot',id:'I01'},history=[],future=[],zoom=55,drag=null,saving=false,remote=null,notice=null;
 const root=document.getElementById('timeline-editor');
 const sourceOf=c=>library.find(s=>s.id===c.source);
 const fmt=n=>Number(n).toLocaleString('ru-RU',{maximumFractionDigits:2});
@@ -28,11 +28,11 @@ const audioEngine={context:null,master:null,buffers:new Map(),nodes:[],generatio
     const duration=data.loop?remaining:Math.min(remaining,buffer.duration-offset);if(duration<=0)continue;
     node.connect(gain);gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(c.gain,at+Math.min(.008,duration/4));gain.gain.setValueAtTime(c.gain,at+Math.max(.008,duration-.03));gain.gain.linearRampToValueAtTime(0,at+duration);
     if((c.source==='truck'||c.source==='horn-long')){
-     const pan=this.context.createStereoPanner();gain.connect(pan);pan.connect(this.master);pan.pan.setValueAtTime(.8-1.6*skip/c.duration,at);pan.pan.linearRampToValueAtTime(-.8,at+duration);
+     const pan=this.context.createStereoPanner();gain.connect(pan);pan.connect(this.master);pan.pan.setValueAtTime(-.8+1.6*skip/c.duration,at);pan.pan.linearRampToValueAtTime(.8,at+duration);
     }else gain.connect(this.master);
     node.start(at,offset,duration);this.nodes.push(node);
    }
-   setSoundStatus('Шумы включены · крик и дыхание ещё не записаны');return true;
+   setSoundStatus('Черновые шумы · реплики, крик, дыхание и музыка ещё не проложены');return true;
   }catch(error){setSoundStatus(error.message,true);return false;}
  },
  position(){return Math.max(this.startedAt,this.context.currentTime-this.origin);},
@@ -44,7 +44,7 @@ function markDraft(){dirty=JSON.stringify(state)!==JSON.stringify(remote?.state|
 function remember(){try{localStorage.setItem(draftKey,JSON.stringify({revision,state}));}catch{status('Не удалось сохранить черновик в браузере',true);}}
 function apply(){
  for(const saved of state.shots){const s=currentEpisode.shots.find(s=>s.id===saved.id);s.duration=saved.duration;if(saved.phases)saved.phases.forEach(p=>{s.phases.find(x=>x.id===p.id).duration=p.duration;});}
- currentEpisode.duration=totalDuration(state);currentEpisode.adaptation=`11 событий / ${state.shots.length} монтажных кадров / ${fmt(currentEpisode.duration)} с. Длительности редактируются в монтаже. Составные планы сохраняют непрерывность действия.`;
+ currentEpisode.duration=totalDuration(state);currentEpisode.adaptation=`${window.PILOT_BEATS.length} событий / ${state.shots.length} монтажных кадров / ${fmt(currentEpisode.duration)} с. Длительности редактируются в монтаже. Составные планы сохраняют непрерывность действия. I — салон, T — шоссе, U — переход. Реплики ещё не записаны; диалоговый ритм уточним по прогону.`;
  animatic.time=Math.min(animatic.time,currentEpisode.duration);renderBoard();renderEpisodes();render();updateAnimatic(true);
 }
 function commit(next){
@@ -78,7 +78,7 @@ function render(){
  root.querySelector('[data-edit-undo]').disabled=!history.length;root.querySelector('[data-edit-redo]').disabled=!future.length;root.querySelector('[data-edit-save]').disabled=saving||!dirty;
  status(dirty?'Черновик в этом браузере · сохраните для команды':revision?`Общий монтаж · версия ${revision}`:'Стартовая шумовая раскладка',false,false);
 }
-root.innerHTML=`<div class="edit-toolbar"><strong>МОНТАЖ</strong><button data-edit-undo aria-label="Отменить изменение монтажа">↶</button><button data-edit-redo aria-label="Повторить изменение монтажа">↷</button><label class="ripple-option"><input id="edit-ripple" type="checkbox" checked> Сдвигать звуки за склейкой</label><label class="zoom-option">Масштаб <input id="edit-zoom" type="range" min="32" max="120" step="4" value="55" aria-label="Масштаб таймлайна"></label><button class="primary" data-edit-save>Сохранить для команды</button><button data-edit-shared>Общая версия</button></div><p class="edit-status" data-edit-status role="status"></p><p class="edit-help">Тяните правый край плана. Звуки передвигайте целиком, края — подрезайте. Шаг: 0,05 с. Точные значения — в полях ниже.</p><div class="edit-scroll"><div class="edit-canvas"></div></div><div class="edit-inspector"></div><div class="sound-library"><label>Добавить шум <select id="sound-add">${library.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label><button data-edit-add>+ В текущую позицию</button><details><summary>Источники и лицензии</summary><p>Черновые библиотечные шумы. Крик и дыхание Оксаны — под запись актрисы.</p>${library.map(s=>`<p><a href="${esc(s.source)}" target="_blank" rel="noopener">${esc(s.name)}</a> — ${esc(s.author)}, <a href="${esc(s.licenseUrl)}" target="_blank" rel="noopener">${esc(s.license)}</a>. ${s.id==='horn-long'?'Синтезированный библиотечный эскиз; растяжение и короткий хвост.':'Фрагмент, нормализация уровня, плавные края.'}</p>`).join('')}<a href="audio/CREDITS.md" target="_blank">Полный список источников ↗</a></details></div>`;
+root.innerHTML=`<div class="edit-toolbar"><strong>МОНТАЖ</strong><button data-edit-undo aria-label="Отменить изменение монтажа">↶</button><button data-edit-redo aria-label="Повторить изменение монтажа">↷</button><label class="ripple-option"><input id="edit-ripple" type="checkbox" checked> Сдвигать звуки за склейкой</label><label class="zoom-option">Масштаб <input id="edit-zoom" type="range" min="32" max="120" step="4" value="55" aria-label="Масштаб таймлайна"></label><button class="primary" data-edit-save>Сохранить для команды</button><button data-edit-shared>Общая версия</button></div><p class="edit-status" data-edit-status role="status"></p><p class="edit-help">Тяните правый край плана. Звуки передвигайте целиком, края — подрезайте. Шаг: 0,05 с. Точные значения — в полях ниже.</p><div class="edit-scroll"><div class="edit-canvas"></div></div><div class="edit-inspector"></div><div class="sound-library"><label>Добавить шум <select id="sound-add">${library.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label><button data-edit-add>+ В текущую позицию</button><details><summary>Источники и лицензии</summary><p>Черновые шумы. Реплики, звонок, дыхание, крик и музыка пока только в описаниях планов; их предстоит записать или подобрать.</p>${library.map(s=>`<p><a href="${esc(s.source)}" target="_blank" rel="noopener">${esc(s.name)}</a> — ${esc(s.author)}, <a href="${esc(s.licenseUrl)}" target="_blank" rel="noopener">${esc(s.license)}</a>. ${s.id==='horn-long'?'Синтезированный библиотечный эскиз; растяжение и короткий хвост.':'Фрагмент, нормализация уровня, плавные края.'}</p>`).join('')}<a href="audio/CREDITS.md" target="_blank">Полный список источников ↗</a></details></div>`;
 root.addEventListener('pointerdown',e=>{
  const clip=e.target.closest('[data-edit-id]');if(!clip||e.button!==0||saving)return;
  pauseAnimatic();selected={type:clip.dataset.editType,id:clip.dataset.editId};inspector();root.querySelectorAll('.edit-clip').forEach(n=>n.classList.toggle('selected',n===clip));
@@ -125,7 +125,7 @@ async function save(){
  if(!session){showLogin();status('Войдите по коду проекта, затем нажмите «Сохранить для команды»');return;}
  saving=true;render();status('Сохраняю…');
  try{
-  const saved=await request('/timeline/taxi',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision,state})});
+  const saved=await request('/timeline/sequence',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision,state})});
   revision=saved.revision;remote=saved;dirty=false;try{localStorage.removeItem(draftKey);}catch{}status(`Сохранено для команды · версия ${revision}`);
  }catch(error){status(error.message,true);}finally{saving=false;root.querySelector('[data-edit-save]').disabled=!dirty;}
 }
@@ -134,7 +134,7 @@ root.addEventListener('click',async e=>{
  if(e.target.closest('[data-edit-undo]'))undo();if(e.target.closest('[data-edit-redo]'))undo(true);
  if(e.target.closest('[data-edit-save]'))save();
  if(e.target.closest('[data-edit-shared]')){
-  try{const saved=await request('/timeline/taxi');pauseAnimatic();history.push(clone());future=[];state=saved.state?validateTimeline(saved.state,library):structuredClone(defaults);revision=saved.revision;dirty=false;remote=saved;notice=null;try{localStorage.removeItem(draftKey);}catch{}apply();status('Общая версия загружена. Предыдущий черновик можно вернуть кнопкой ↶.');}catch(error){status(error.message,true);}
+  try{const saved=await request('/timeline/sequence');pauseAnimatic();history.push(clone());future=[];state=saved.state?validateTimeline(saved.state,library):structuredClone(defaults);revision=saved.revision;dirty=false;remote=saved;notice=null;try{localStorage.removeItem(draftKey);}catch{}apply();status('Общая версия загружена. Предыдущий черновик можно вернуть кнопкой ↶.');}catch(error){status(error.message,true);}
  }
  if(e.target.closest('[data-editor-seek]'))seekAnimatic(Number(e.target.closest('[data-editor-seek]').dataset.editorSeek));
  if(e.target.closest('[data-edit-add]')){
@@ -142,7 +142,7 @@ root.addEventListener('click',async e=>{
   const id='s-'+crypto.randomUUID();next.sounds.push({id,source:src.id,start:round(start),duration,offset:0,gain:.7,track:src.id==='rain'?0:src.id.startsWith('horn')?3:src.id==='truck'?2:1,muted:false});selected={type:'sound',id};commit(next);
  }
  if(e.target.closest('[data-edit-mute]')){const next=clone(),c=next.sounds.find(c=>c.id===selected.id);c.muted=!c.muted;commit(next);}
- if(e.target.closest('[data-edit-remove]')){const next=clone();next.sounds=next.sounds.filter(c=>c.id!==selected.id);selected={type:'shot',id:'T01'};commit(next);}
+ if(e.target.closest('[data-edit-remove]')){const next=clone();next.sounds=next.sounds.filter(c=>c.id!==selected.id);selected={type:'shot',id:'I01'};commit(next);}
 });
 for(const b of document.querySelectorAll('[data-sound-toggle]'))b.addEventListener('click',()=>{
  audioEngine.muted=!audioEngine.muted;audioEngine.setVolume();document.querySelectorAll('[data-sound-toggle]').forEach(el=>{el.textContent=audioEngine.muted?'Звук выключен':'Звук включён';el.setAttribute('aria-pressed',String(!audioEngine.muted));});
@@ -156,7 +156,7 @@ window.KinoTimeline={
  render
 };
 try{
- remote=await request('/timeline/taxi');revision=remote.revision;if(remote.state)state=validateTimeline(remote.state,library);
+ remote=await request('/timeline/sequence');revision=remote.revision;if(remote.state)state=validateTimeline(remote.state,library);
  }catch(error){status('Общий монтаж пока недоступен. Правки сохраняются в браузере.',true);}
 try{const draft=JSON.parse(localStorage.getItem(draftKey)||'null');if(draft){state=validateTimeline(draft.state,library);revision=draft.revision;markDraft();}}catch{status('Не удалось восстановить черновик браузера.',true);}
 apply();if(dirty&&remote&&remote.revision!==revision)status('Есть новая общая версия. Ваш черновик сохранён в браузере.',true);

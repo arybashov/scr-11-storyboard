@@ -4,13 +4,14 @@ import path from 'node:path';
 import {createHmac, timingSafeEqual, randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import sharp from 'sharp';
-import {validateTimeline} from './timeline-model.mjs';
+import {validateTimeline,sequenceShotIds} from './timeline-model.mjs';
 const soundLibrary=JSON.parse(fs.readFileSync(new URL('./sound-library.json',import.meta.url),'utf8'));
 
 const MAX_FILE = 15 * 1024 * 1024;
 const MAX_STORAGE = Number(process.env.MAX_STORAGE_BYTES || 1024 * 1024 * 1024);
 const TTL = 7 * 24 * 60 * 60 * 1000;
 const validShots = new Set(['T01','T02','T03','T04','T05','T06','T07','T08','T09','T10','T11','T12','T13','T14','T15','A01','A02','A03','A04','A05','B01','B02','B03','B04','B05','C01','C02','C03','C04','C05','C06']);
+sequenceShotIds.forEach(id=>validShots.add(id));
 const validAssets = new Set(['oksana','taxi','phone','truck','highway','underpass']);
 const formats = {jpeg:'jpg',png:'png',webp:'webp'};
 const mime = {jpg:'image/jpeg',png:'image/png',webp:'image/webp'};
@@ -66,18 +67,19 @@ export function createBoardServer(options = {}) {
     try{
       if(req.method==='GET'&&url.pathname==='/health'){reply(200,{ok:true,service:'kino-storyboard',revision:index.revision});return;}
       if(req.method==='GET'&&url.pathname==='/gallery'){reply(200,index);return;}
-      if(url.pathname==='/timeline/taxi'){
-        if(req.method==='GET'){reply(200,index.timeline||{revision:0,state:null});return;}
+      if(['/timeline/taxi','/timeline/sequence'].includes(url.pathname)){
+        const key=url.pathname.endsWith('/sequence')?'sequenceTimeline':'timeline';
+        if(req.method==='GET'){reply(200,index[key]||{revision:0,state:null});return;}
         if(req.method==='PATCH'){
           const auth=authenticate(req);
           if(!auth){req.resume();reply(401,{error:'Войдите по коду проекта, чтобы сохранить монтаж для команды'});return;}
           const data=await jsonBody(req,65536);
-          let state;try{state=validateTimeline(data.state,soundLibrary);}catch(error){reply(400,{error:error.message});return;}
-          if(data.revision!==(index.timeline?.revision||0)){reply(409,{error:'Монтаж уже изменён другим участником. Ваш черновик сохранён в браузере. Загрузите общую версию перед сохранением.',revision:index.timeline?.revision||0});return;}
-          const previous=index.timeline,previousRevision=index.revision;
-          index.timeline={revision:(previous?.revision||0)+1,author:auth.name,updatedAt:new Date().toISOString(),state};
-          try{save();}catch(error){index.timeline=previous;index.revision=previousRevision;throw error;}
-          reply(200,index.timeline);return;
+          let state;try{state=validateTimeline(data.state,soundLibrary);if(state.schema!==(key==='sequenceTimeline'?2:1))throw new Error('Версия монтажа не соответствует эпизоду');}catch(error){reply(400,{error:error.message});return;}
+          if(data.revision!==(index[key]?.revision||0)){reply(409,{error:'Монтаж уже изменён другим участником. Ваш черновик сохранён в браузере. Загрузите общую версию перед сохранением.',revision:index[key]?.revision||0});return;}
+          const previous=index[key],previousRevision=index.revision;
+          index[key]={revision:(previous?.revision||0)+1,author:auth.name,updatedAt:new Date().toISOString(),state};
+          try{save();}catch(error){index[key]=previous;index.revision=previousRevision;throw error;}
+          reply(200,index[key]);return;
         }
       }
       if(req.method==='GET'&&/^\/media\/[a-f0-9-]+(?:-thumb)?\.(jpg|png|webp)$/.test(url.pathname)){
@@ -99,7 +101,7 @@ export function createBoardServer(options = {}) {
         const encoded=Buffer.from(JSON.stringify(payload)).toString('base64url');
         reply(200,{...payload,token:encoded+'.'+sign(encoded)});return;
       }
-      const route=url.pathname.match(/^\/(shots|assets)\/([a-z0-9-]+|[ABCT]\d{2})\/(images|current)$/);
+      const route=url.pathname.match(/^\/(shots|assets)\/([a-z0-9-]+|[ABCTIU]\d{2})\/(images|current)$/);
       if(route&&(route[1]==='shots'?validShots:validAssets).has(route[2])){
         const auth=authenticate(req);
         if(!auth){req.resume();reply(401,{error:'Войдите в команду по коду проекта'});return;}
