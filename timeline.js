@@ -1,6 +1,6 @@
-import {round,defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart} from './server/timeline-model.mjs?v=20261107-sequence';
+import {round,defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart,extendSequence} from './server/timeline-model.mjs?v=20261108-underpass';
 async function initTimeline(){
-const library=await fetch('server/sound-library.json?v=20261107-sequence').then(r=>{if(!r.ok)throw new Error('Библиотека звуков недоступна');return r.json();});
+const library=await fetch('server/sound-library.json?v=20261108-underpass').then(r=>{if(!r.ok)throw new Error('Библиотека звуков недоступна');return r.json();});
 const original=structuredClone(currentEpisode),defaults=defaultTimeline(original),draftKey='kino-full-sequence-timeline-v2';
 let state=structuredClone(defaults),revision=0,dirty=false,selected={type:'shot',id:'I01'},history=[],future=[],zoom=55,drag=null,saving=false,remote=null,notice=null;
 const root=document.getElementById('timeline-editor');
@@ -32,7 +32,7 @@ const audioEngine={context:null,master:null,buffers:new Map(),nodes:[],generatio
     }else gain.connect(this.master);
     node.start(at,offset,duration);this.nodes.push(node);
    }
-   setSoundStatus('Черновые шумы · реплики, крик, дыхание и музыка ещё не проложены');return true;
+   setSoundStatus('Черновые шумы · реплики, голос, музыка и движение стен ещё не проложены');return true;
   }catch(error){setSoundStatus(error.message,true);return false;}
  },
  position(){return Math.max(this.startedAt,this.context.currentTime-this.origin);},
@@ -44,7 +44,7 @@ function markDraft(){dirty=JSON.stringify(state)!==JSON.stringify(remote?.state|
 function remember(){try{localStorage.setItem(draftKey,JSON.stringify({revision,state}));}catch{status('Не удалось сохранить черновик в браузере',true);}}
 function apply(){
  for(const saved of state.shots){const s=currentEpisode.shots.find(s=>s.id===saved.id);s.duration=saved.duration;if(saved.phases)saved.phases.forEach(p=>{s.phases.find(x=>x.id===p.id).duration=p.duration;});}
- currentEpisode.duration=totalDuration(state);currentEpisode.adaptation=`${window.PILOT_BEATS.length} событий / ${state.shots.length} монтажных кадров / ${fmt(currentEpisode.duration)} с. Длительности редактируются в монтаже. Составные планы сохраняют непрерывность действия. I — салон, T — шоссе, U — переход. Реплики ещё не записаны; диалоговый ритм уточним по прогону.`;
+ currentEpisode.duration=totalDuration(state);currentEpisode.adaptation=`${window.PILOT_BEATS.length} событий / ${state.shots.length} монтажных кадров / ${fmt(currentEpisode.duration)} с. Длительности редактируются в монтаже. Составные планы сохраняют непрерывность действия. I — салон, T — шоссе, U — переход и первая ловушка. Реплики ещё не записаны; диалоговый ритм уточним по прогону.`;
  animatic.time=Math.min(animatic.time,currentEpisode.duration);renderBoard();renderEpisodes();render();updateAnimatic(true);
 }
 function commit(next){
@@ -134,7 +134,7 @@ root.addEventListener('click',async e=>{
  if(e.target.closest('[data-edit-undo]'))undo();if(e.target.closest('[data-edit-redo]'))undo(true);
  if(e.target.closest('[data-edit-save]'))save();
  if(e.target.closest('[data-edit-shared]')){
-  try{const saved=await request('/timeline/sequence');pauseAnimatic();history.push(clone());future=[];state=saved.state?validateTimeline(saved.state,library):structuredClone(defaults);revision=saved.revision;dirty=false;remote=saved;notice=null;try{localStorage.removeItem(draftKey);}catch{}apply();status('Общая версия загружена. Предыдущий черновик можно вернуть кнопкой ↶.');}catch(error){status(error.message,true);}
+  try{const saved=await request('/timeline/sequence');pauseAnimatic();history.push(clone());future=[];state=saved.state?validateTimeline(extendSequence(saved.state,original),library):structuredClone(defaults);revision=saved.revision;dirty=false;remote=saved;notice=null;try{localStorage.removeItem(draftKey);}catch{}apply();status('Общая версия загружена. Предыдущий черновик можно вернуть кнопкой ↶.');}catch(error){status(error.message,true);}
  }
  if(e.target.closest('[data-editor-seek]'))seekAnimatic(Number(e.target.closest('[data-editor-seek]').dataset.editorSeek));
  if(e.target.closest('[data-edit-add]')){
@@ -152,13 +152,13 @@ window.KinoTimeline={
  start:time=>audioEngine.start(time),stop:()=>audioEngine.stop(),position:()=>audioEngine.position(),
  seek(time){if(animatic.playing){pauseAnimatic();animatic.time=time;playAnimatic();}},
  update(time){const p=root.querySelector('.edit-playhead');if(p)p.style.left=Math.min(100,time/totalDuration(state)*100)+'%';},
- receive(saved){if(!saved||saved.revision<=revision||drag)return;remote=saved;if(dirty){status('Есть новая общая версия. Ваш черновик сохранён в браузере.',true);return;}if(animatic.playing||root.contains(document.activeElement))return;try{state=validateTimeline(saved.state,library);revision=saved.revision;apply();}catch{}},
+ receive(saved){if(!saved||saved.revision<=revision||drag)return;remote=saved;if(dirty){status('Есть новая общая версия. Ваш черновик сохранён в браузере.',true);return;}if(animatic.playing||root.contains(document.activeElement))return;try{state=validateTimeline(extendSequence(saved.state,original),library);revision=saved.revision;apply();}catch{}},
  render
 };
 try{
- remote=await request('/timeline/sequence');revision=remote.revision;if(remote.state)state=validateTimeline(remote.state,library);
+ remote=await request('/timeline/sequence');revision=remote.revision;if(remote.state)state=validateTimeline(extendSequence(remote.state,original),library);
  }catch(error){status('Общий монтаж пока недоступен. Правки сохраняются в браузере.',true);}
-try{const draft=JSON.parse(localStorage.getItem(draftKey)||'null');if(draft){state=validateTimeline(draft.state,library);revision=draft.revision;markDraft();}}catch{status('Не удалось восстановить черновик браузера.',true);}
+try{const draft=JSON.parse(localStorage.getItem(draftKey)||'null');if(draft){state=validateTimeline(extendSequence(draft.state,original),library);revision=draft.revision;markDraft();}}catch{status('Не удалось восстановить черновик браузера.',true);}
 apply();if(dirty&&remote&&remote.revision!==revision)status('Есть новая общая версия. Ваш черновик сохранён в браузере.',true);
 setSoundStatus('Шумовая раскладка · нажмите ▶');
 

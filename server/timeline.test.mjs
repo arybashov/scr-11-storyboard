@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 import {createBoardServer} from './server.mjs';
-import {defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart} from './timeline-model.mjs';
+import {defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart,extendSequence} from './timeline-model.mjs';
 const context={window:{}};vm.runInNewContext(fs.readFileSync(new URL('../episodes.js',import.meta.url),'utf8'),context);
 const library=JSON.parse(fs.readFileSync(new URL('./sound-library.json',import.meta.url),'utf8'));
 const fresh=()=>defaultTimeline(context.window.EPISODES[0]);
@@ -50,4 +50,15 @@ test('sequence sound cues follow picture edits and legacy states still validate'
  oldShots.find(s=>s.id==='T01').duration=6;
  oldShots.find(s=>s.id==='T01').phases=[{id:'T01',duration:3},{id:'T02',duration:3}];
  const legacy=defaultTimeline({shots:oldShots});assert.equal(legacy.schema,1);validateTimeline(legacy,library);
+});
+
+test('underpass extension preserves edited picture and audio and is idempotent',()=>{
+ const old=structuredClone(fresh());old.shots=old.shots.slice(0,26);old.sounds=old.sounds.filter(c=>!c.id.startsWith('underpass-'));
+ resizeShot(old,'I04',4.25);old.sounds.find(c=>c.id==='door-slam').gain=.42;
+ validateTimeline(old,library);
+ const before=structuredClone(old),next=extendSequence(old,context.window.EPISODES[0]);
+ assert.deepEqual(old,before);assert.deepEqual(next.shots.slice(0,26),old.shots);assert.deepEqual(next.sounds.slice(0,old.sounds.length),old.sounds);
+ assert.equal(next.shots.length,34);assert.equal(next.sounds.find(c=>c.id==='underpass-rain-distant').start,totalDuration(old));
+ assert.deepEqual(extendSequence(next,context.window.EPISODES[0]),next);validateTimeline(next,library);
+ const bad=structuredClone(old);bad.shots[0].id='U99';assert.throws(()=>extendSequence(bad,context.window.EPISODES[0]));
 });

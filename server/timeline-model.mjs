@@ -1,6 +1,7 @@
 export const round = n => Math.round(n * 100) / 100;
 export const shotIds = ['T01','T03','T04','T05','T07','T08','T09','T10','T11','T12','T13','T15'];
-export const sequenceShotIds = ['I01','I02','I03','I04','I05','I06','I07','I08','I09',...shotIds,'U01','U02','U03','U04','U05'];
+export const entryShotIds = ['I01','I02','I03','I04','I05','I06','I07','I08','I09',...shotIds,'U01','U02','U03','U04','U05'];
+export const sequenceShotIds = [...entryShotIds,'U06','U07','U08','U09','U10','U11','U12','U13'];
 export const phaseIds = {T01:['T01','T02'],T05:['T05','T06'],T13:['T13','T14']};
 export const totalDuration = state => round(state.shots.reduce((n,s)=>n+s.duration,0));
 export function shotStart(state,id){let t=0;for(const s of state.shots){if(s.id===id)return round(t);t+=s.duration;}return 0;}
@@ -9,10 +10,10 @@ export function defaultTimeline(episode){
   if(episode.timelineSchema===2){
     const shots=episode.shots.map(s=>({id:s.id,duration:s.duration,...(s.phases?{phases:s.phases.map(p=>({id:p.id,duration:p.duration}))}:{})}));
     const at=id=>shotStart({shots},id),total=totalDuration({shots}),outside=at('T01'),stairs=at('U05');
-    return {schema:2,shots,sounds:[
+    return withUnderpassSounds({schema:2,shots,sounds:[
       clip('rain-cabin','rain',0,outside,0,.16),
       clip('rain-bed','rain',outside,round(stairs-outside),0,.8),
-      clip('rain-stairs','rain',stairs,round(total-stairs),0,.2),
+      clip('rain-stairs','rain',stairs,round((shots.some(s=>s.id==='U06')?at('U06'):total)-stairs),0,.2),
       clip('exit-steps','steps',round(outside+.2),1.6,1,.65),
       clip('door-slam','door',round(outside+3.65),.46,1),
       clip('phone-drop','phone',at('T03'),.55,1,.9),
@@ -22,7 +23,7 @@ export function defaultTimeline(episode){
       clip('jump-splash','steps',at('T10'),.6,1,.85,3.7),
       clip('to-stairs','steps',at('U03'),2.5,1,.6),
       clip('down-stairs','steps',at('U05'),3,1,.6)
-    ]};
+    ]});
   }
   return {schema:1,shots:episode.shots.map(s=>({id:s.id,duration:s.duration,...(s.phases?{phases:s.phases.map(p=>({id:p.id,duration:p.duration}))}:{})})),sounds:[
     clip('rain-bed','rain',0,20.2,0,.8),
@@ -38,7 +39,7 @@ export function defaultTimeline(episode){
 export function validateTimeline(state,library){
   const fail=()=>{throw new Error('Некорректные параметры монтажа');};
   const num=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
-  const expectedIds=state?.schema===2?sequenceShotIds:shotIds;
+  const expectedIds=state?.schema===2?(state.shots?.length===entryShotIds.length?entryShotIds:sequenceShotIds):shotIds;
   if(!state||![1,2].includes(state.schema)||!Array.isArray(state.shots)||state.shots.length!==expectedIds.length||!Array.isArray(state.sounds)||state.sounds.length>80)fail();
   const shots=state.shots.map((s,i)=>{
     if(s.id!==expectedIds[i]||!num(s.duration,.2,30))fail();
@@ -78,4 +79,28 @@ export function resizeShot(state,id,duration,ripple=true){
   state.sounds=state.sounds.filter(c=>c.start<end-.049);
   for(const c of state.sounds)c.duration=round(Math.min(c.duration,end-c.start));
   return state;
+}
+
+function withUnderpassSounds(state){
+ if(!state.shots.some(s=>s.id==='U06'))return state;
+ const at=id=>shotStart(state,id),total=totalDuration(state),emerge=round(at('U12')+1.2);
+ const clip=(id,source,start,duration,track,gain)=>({id,source,start:round(start),duration:round(duration),offset:0,track,gain,muted:false});
+ const additions=[
+  clip('underpass-rain-distant','rain',at('U06'),emerge-at('U06'),0,.15),
+  clip('underpass-rain-return','rain',emerge,total-emerge,0,.8),
+  clip('underpass-walk','steps',at('U06'),2.1,1,.55),
+  clip('underpass-run','steps',at('U10'),3.9,1,.8),
+  clip('underpass-climb','steps',at('U12'),1.7,1,.85)
+ ];
+ for(const c of additions)if(!state.sounds.some(s=>s.id===c.id))state.sounds.push(c);
+ return state;
+}
+// Append the continuation without resetting any of the team's existing trims or sounds.
+export function extendSequence(state,episode){
+ if(state.schema!==2)return state;
+ if(state.shots.length===sequenceShotIds.length)return structuredClone(state);
+ if(state.shots.length!==entryShotIds.length||state.shots.some((s,i)=>s.id!==entryShotIds[i]))throw new Error('Неизвестная версия монтажа');
+ const next=structuredClone(state);
+ for(const s of episode.shots.slice(entryShotIds.length))next.shots.push({id:s.id,duration:s.duration});
+ return withUnderpassSounds(next);
 }
