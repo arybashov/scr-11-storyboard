@@ -1,6 +1,7 @@
 'use strict';
 // Composition diagrams, not generated production art. Same palette as the original board.
 function sequenceSketch(type,label=''){
+ if(type==='subjective-pov')return subjectivePerspective(0);
  const ink='#b9cbb8',lime='#d5ec8c',dark='#101b17';
  const rain=`<g stroke="#adc7c3" opacity=".38">${Array.from({length:33},(_,i)=>`<path d="M${i*23} 0l-30 95m20 20l-28 105m18 18l-30 110"/>`).join('')}</g>`;
  const phone=(x,y,s=1,call=false)=>`<g transform="translate(${x} ${y}) scale(${s})"><rect x="-18" y="-33" width="36" height="66" rx="5" fill="#080e12" stroke="${ink}" stroke-width="2"/><rect x="-14" y="-27" width="28" height="53" fill="${call?'#45615a':'#13221e'}"/>${call?'<circle cy="15" r="7" fill="#93b763"/>':''}</g>`;
@@ -36,5 +37,25 @@ function sequenceSketch(type,label=''){
  if(type==='wall-retreat')scene=`<g transform="translate(640 0) scale(-1 1)">${tunnel}<path d="M195 78H444V279H195Z" fill="none" stroke="${lime}" stroke-width="2" stroke-dasharray="7 5" opacity=".55"/></g>${woman(217,211,.65,'panic')}`+arrow('M317 308V181l-10 14m10-14l10 14')+arrow('M282 294L192 269L181 240l-5 15m5-15l13 8');
  if(type==='tunnel-escape')scene=`<rect width="640" height="360" fill="#21372c"/><path d="M196 0H445V87H196Z" fill="#9bab99"/><path d="M196 87H445L600 360H40Z" fill="#4d6451"/><g fill="none" stroke="${ink}">${Array.from({length:10},(_,i)=>{const y=95+i*i*3;return `<path d="M${195-(y-87)*.57} ${y}H${445+(y-87)*.57}"/>`;}).join('')}<path d="M175 67L29 340M466 67L611 340" stroke-width="5"/></g>${woman(323,116,.75,'panic')}${arrow('M355 275L345 197l-8 15m8-15l12 12')}`;
  if(type==='tunnel-outside')scene=road+`<path d="M157 360Q169 262 259 246H383Q481 260 492 360" fill="#26332c" stroke="${ink}"/>${face(320,169,3.1,'panic')}<path d="M280 167l-3 51m80-51l6 42M263 78l-13 168m137-166l15 151" fill="none" stroke="#18271f" stroke-width="5" opacity=".65"/>${rain}`;
+ if(type==='subjective-rear')scene=`<g transform="translate(640 0) scale(-1 1)">${tunnel}</g><rect x="24" y="302" width="592" height="37" fill="#102019"/><text x="38" y="326" fill="${ink}" font-family="sans-serif" font-size="14">ВЗГЛЯД НАЗАД · ВЫХОД ОТКРЫТ · 0,7 С</text>`;
+ if(type==='subjective-run')scene=tunnel+`<path d="M0 0H192V360H0Z" fill="#0b1712"/><g transform="rotate(-12 348 245)">${woman(348,242,1.7,'panic')}</g><path d="M520 35L584 70M530 100L603 132M522 185L610 215" stroke="${ink}" opacity=".5"/><rect x="24" y="302" width="592" height="37" fill="#102019"/><text x="38" y="326" fill="${ink}" font-family="sans-serif" font-size="14">БЕГ С НЕЙ · БЕЗ ПЛАНА ОТСТУПАЮЩЕЙ СТЕНЫ</text>`;
  return `<svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(label)}">${scene}<path d="M16 30V16H30M610 16H624V30M16 330V344H30M610 344H624V330" fill="none" stroke="${ink}" opacity=".5"/></svg>`;
+}
+
+// Perspective previz: fixed world vertices, translated camera and counter-zoom.
+// The cross-section z=6 retains its scale. This is not a zoom applied to a bitmap.
+function subjectivePerspective(progress=0){
+ const t=Math.max(0,Math.min(1,(progress-.12)/.88)),ease=t*t*(3-2*t),camera=-2.8*ease,focal=620*(6-camera)/6;
+ const p=(x,y,z)=>[320+focal*x/(z-camera),180+focal*y/(z-camera)];
+ const line=(a,b,stroke='#7f9588',width=1)=>{const u=p(...a),v=p(...b);return `<path d="M${u[0]} ${u[1]}L${v[0]} ${v[1]}" stroke="${stroke}" stroke-width="${width}" fill="none"/>`;};
+ let geometry='';
+ for(const z of [2,4,6,8,11,14,18]){
+  geometry+=line([-2,-1.6,z],[2,-1.6,z])+line([-2,1.6,z],[2,1.6,z]);
+  geometry+=line([-2,-1.6,z],[-2,1.6,z])+line([2,-1.6,z],[2,1.6,z]);
+ }
+ for(const x of [-2,-1,0,1,2])geometry+=line([x,1.6,2],[x,1.6,18]);
+ for(const x of [-2,2])for(const y of [-1.6,-.5,.5,1.6])geometry+=line([x,y,2],[x,y,18]);
+ // A lateral stair opening, not a stair placed straight down the corridor axis.
+ const door=[[2,-.9,15],[2,-.9,17],[2,1.6,17],[2,1.6,15]].map(v=>p(...v).join(',')).join(' ');
+ return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Схема транстрава: неподвижный туннель, меняющаяся перспектива"><defs><clipPath id="subjective-frame"><rect width="640" height="360"/></clipPath></defs><rect width="640" height="360" fill="#16231e"/><g clip-path="url(#subjective-frame)">${geometry}<polygon points="${door}" fill="#a5b69d" stroke="#d4dec9"/>${line([-2,-1.6,18],[2,1.6,18],'#56685b')}${line([0,-1.6,5],[0,-1.6,8],'#e0e8c9',4)}</g><rect x="0" y="0" width="640" height="35" fill="#111b17"/><text x="20" y="23" font-family="sans-serif" font-size="14" fill="#dce6d2">U07 · СХЕМА ТРАНСТРАВА · СУБЪЕКТИВНЫЙ ВЗГЛЯД</text><rect x="0" y="328" width="640" height="32" fill="#111b17"/><text x="20" y="349" font-family="sans-serif" font-size="12" fill="#dce6d2">КАМЕРА НАЗАД + ЗУМ ВПЕРЁД · ГЕОМЕТРИЯ НЕПОДВИЖНА</text></svg>`;
 }

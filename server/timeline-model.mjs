@@ -4,6 +4,7 @@ export const entryShotIds = ['I01','I02','I03','I04','I05','I06','I07','I08','I0
 export const sequenceShotIds = [...entryShotIds,'U06','U07','U08','U09','U10','U11','U12','U13'];
 // The shorter editorial cut keeps the original IDs and all gallery versions.
 export const rhythmShotIds = sequenceShotIds.filter(id=>!['I07','I09','U02','U03'].includes(id));
+export const subjectiveShotIds = rhythmShotIds.filter(id=>!['I01','I02','I05','I06','U06','U10'].includes(id));
 export const phaseIds = {T01:['T01','T02'],T05:['T05','T06'],T13:['T13','T14']};
 export const totalDuration = state => round(state.shots.reduce((n,s)=>n+s.duration,0));
 export function shotStart(state,id){let t=0;for(const s of state.shots){if(s.id===id)return round(t);t+=s.duration;}return 0;}
@@ -16,7 +17,7 @@ export function defaultTimeline(episode){
     return withUnderpassSounds({schema:2,shots,sounds:[
       clip('rain-cabin','rain',0,outside,0,.16),
       clip('rain-bed','rain',outside,round(stairs-outside),0,.8),
-      clip('rain-stairs','rain',stairs,round((shots.some(s=>s.id==='U06')?at('U06'):total)-stairs),0,.2),
+      clip('rain-stairs','rain',stairs,round((shots.some(s=>s.id==='U06')?at('U06'):shots.some(s=>s.id==='U07')?at('U07'):total)-stairs),0,.2),
       clip('exit-steps','steps',round(outside+.2),1.6,1,.65),
       clip('door-slam','door',round(outside+3.65),.46,1),
       clip('phone-drop','phone',at('T03'),.55,1,.9),
@@ -42,7 +43,7 @@ export function defaultTimeline(episode){
 export function validateTimeline(state,library){
   const fail=()=>{throw new Error('Некорректные параметры монтажа');};
   const num=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
-  const expectedIds=state?.schema===2?(state.shots?.length===entryShotIds.length?entryShotIds:state.shots?.length===rhythmShotIds.length?rhythmShotIds:sequenceShotIds):shotIds;
+  const expectedIds=state?.schema===2?([entryShotIds,rhythmShotIds,subjectiveShotIds,sequenceShotIds].find(ids=>ids.length===state.shots?.length)||sequenceShotIds):shotIds;
   if(!state||![1,2].includes(state.schema)||!Array.isArray(state.shots)||state.shots.length!==expectedIds.length||!Array.isArray(state.sounds)||state.sounds.length>80)fail();
   const shots=state.shots.map((s,i)=>{
     if(s.id!==expectedIds[i]||!num(s.duration,.2,30))fail();
@@ -85,14 +86,15 @@ export function resizeShot(state,id,duration,ripple=true){
 }
 
 function withUnderpassSounds(state){
- if(!state.shots.some(s=>s.id==='U06'))return state;
+ if(!state.shots.some(s=>s.id==='U07'))return state;
+ const subjective=!state.shots.some(s=>s.id==='U06');
  const at=id=>shotStart(state,id),total=totalDuration(state),emerge=round(at('U12')+Math.min(1.2,state.shots.find(s=>s.id==='U12').duration));
  const clip=(id,source,start,duration,track,gain)=>({id,source,start:round(start),duration:round(duration),offset:0,track,gain,muted:false});
  const additions=[
-  clip('underpass-rain-distant','rain',at('U06'),emerge-at('U06'),0,.15),
+  clip('underpass-rain-distant','rain',at(subjective?'U07':'U06'),emerge-at(subjective?'U07':'U06'),0,subjective?.05:.15),
   clip('underpass-rain-return','rain',emerge,total-emerge,0,.8),
-  clip('underpass-walk','steps',at('U06'),Math.min(2.1,state.shots.find(s=>s.id==='U06').duration),1,.55),
-  clip('underpass-run','steps',at('U10'),at('U12')-at('U10'),1,.8),
+  ...(!subjective?[clip('underpass-walk','steps',at('U06'),Math.min(2.1,state.shots.find(s=>s.id==='U06').duration),1,.55)]:[]),
+  clip('underpass-run','steps',at(subjective?'U11':'U10'),at('U12')-at(subjective?'U11':'U10'),1,.8),
   clip('underpass-climb','steps',at('U12'),Math.min(1.7,state.shots.find(s=>s.id==='U12').duration),1,.85)
  ];
  for(const c of additions)if(!state.sounds.some(s=>s.id===c.id))state.sounds.push(c);
@@ -101,11 +103,11 @@ function withUnderpassSounds(state){
 // Append the continuation without resetting any of the team's existing trims or sounds.
 export function extendSequence(state,episode){
  if(state.schema!==2)return state;
- if([sequenceShotIds.length,rhythmShotIds.length].includes(state.shots.length))return structuredClone(state);
+ if([sequenceShotIds.length,rhythmShotIds.length,subjectiveShotIds.length].includes(state.shots.length))return structuredClone(state);
  if(state.shots.length!==entryShotIds.length||state.shots.some((s,i)=>s.id!==entryShotIds[i]))throw new Error('Неизвестная версия монтажа');
  const next=structuredClone(state);
  for(const id of sequenceShotIds.slice(entryShotIds.length)){
-  const s=episode.shots.find(s=>s.id===id);next.shots.push({id:s.id,duration:s.duration});
+  const s=[...episode.shots,...(episode.omittedShots||[])].find(s=>s.id===id);next.shots.push({id:s.id,duration:s.duration});
  }
  return withUnderpassSounds(next);
 }

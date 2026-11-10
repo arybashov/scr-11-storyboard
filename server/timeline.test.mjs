@@ -47,7 +47,7 @@ test('sequence sound cues follow picture edits and legacy states still validate'
  assert.equal(s.sounds.find(c=>c.id==='phone-drop').start,shotStart(s,'T03'));
  const oldStart=s.sounds.find(c=>c.id==='rain-bed').start;
  const delta=5-s.shots[0].duration;
- resizeShot(s,'I01',5);assert.equal(s.sounds.find(c=>c.id==='rain-bed').start,oldStart+delta);assert.equal(s.sounds.find(c=>c.id==='rain-cabin').duration,oldStart+delta);validateTimeline(s,library);
+ resizeShot(s,s.shots[0].id,5);assert.equal(s.sounds.find(c=>c.id==='rain-bed').start,oldStart+delta);assert.equal(s.sounds.find(c=>c.id==='rain-cabin').duration,oldStart+delta);validateTimeline(s,library);
  const oldShots=context.window.EPISODES[0].shots.filter(s=>s.id.startsWith('T')).map(s=>({...s}));
  oldShots.find(s=>s.id==='T01').duration=6;
  oldShots.find(s=>s.id==='T01').phases=[{id:'T01',duration:3},{id:'T02',duration:3}];
@@ -66,7 +66,7 @@ test('underpass extension preserves edited picture and audio and is idempotent',
 });
 
 test('short edit omits repeats, retains legacy edits and anchors cues after the ellipses',()=>{
- const s=fresh();assert.equal(totalDuration(s),55.1);assert.equal(s.shots.length,30);validateTimeline(s,library);
+ const s=defaultTimeline(JSON.parse(fs.readFileSync(new URL('../data/edits/20261110-55s.json',import.meta.url),'utf8')).episode);assert.equal(totalDuration(s),55.1);assert.equal(s.shots.length,30);validateTimeline(s,library);
  assert.equal(s.shots.filter(s=>['I07','I09','U02','U03'].includes(s.id)).length,0);
  assert.equal(s.shots.find(s=>s.id==='T03').duration,1.5);
  assert.equal(s.sounds.find(s=>s.id==='to-stairs').start,shotStart(s,'U04'));
@@ -75,4 +75,14 @@ test('short edit omits repeats, retains legacy edits and anchors cues after the 
  assert.deepEqual(extendSequence(s,context.window.EPISODES[0]),structuredClone(s));
  const bad=structuredClone(s);bad.shots[0].id='I07';assert.throws(()=>validateTimeline(bad,library));
  const dupe=structuredClone(s);dupe.shots[1].id=dupe.shots[0].id;assert.throws(()=>validateTimeline(dupe,library));
+});
+
+test('subjective cut keeps the roadway, shortens cabin and leaves no stray footsteps during the POV',()=>{
+ const s=fresh();assert.equal(totalDuration(s),37.1);assert.equal(s.shots.length,24);validateTimeline(s,library);
+ assert.equal(shotStart(s,'T01'),6);assert.equal(shotStart(s,'U01'),25.5);
+ assert.equal(s.sounds.find(c=>c.id==='underpass-run').start,shotStart(s,'U11'));
+ assert.equal(s.sounds.find(c=>c.id==='rain-stairs').duration,3.2);
+ assert.equal(s.sounds.some(c=>c.id==='underpass-walk'),false);
+ assert.equal(s.sounds.find(c=>c.id==='underpass-rain-distant').gain,.05);
+ assert.deepEqual(extendSequence(s,context.window.EPISODES[0]),structuredClone(s));
 });
