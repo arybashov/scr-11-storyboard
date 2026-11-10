@@ -9,6 +9,7 @@ import {defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart,exte
 const context={window:{}};vm.runInNewContext(fs.readFileSync(new URL('../episodes.js',import.meta.url),'utf8'),context);
 const library=JSON.parse(fs.readFileSync(new URL('./sound-library.json',import.meta.url),'utf8'));
 const fresh=()=>defaultTimeline(context.window.EPISODES[0]);
+const archive=JSON.parse(fs.readFileSync(new URL('../data/edits/20261108-80s.json',import.meta.url),'utf8'));
 test('duration edits preserve compound phases, shift later sounds and keep the rain bed',()=>{
  const s=fresh(),before=totalDuration(s),horn=s.sounds.find(c=>c.id==='horn-warning').start;
  const old=s.shots.find(s=>s.id==='T01').duration;
@@ -45,7 +46,8 @@ test('sequence sound cues follow picture edits and legacy states still validate'
  const s=fresh();assert.equal(s.schema,2);validateTimeline(s,library);
  assert.equal(s.sounds.find(c=>c.id==='phone-drop').start,shotStart(s,'T03'));
  const oldStart=s.sounds.find(c=>c.id==='rain-bed').start;
- resizeShot(s,'I01',5);assert.equal(s.sounds.find(c=>c.id==='rain-bed').start,oldStart+1.5);assert.equal(s.sounds.find(c=>c.id==='rain-cabin').duration,oldStart+1.5);validateTimeline(s,library);
+ const delta=5-s.shots[0].duration;
+ resizeShot(s,'I01',5);assert.equal(s.sounds.find(c=>c.id==='rain-bed').start,oldStart+delta);assert.equal(s.sounds.find(c=>c.id==='rain-cabin').duration,oldStart+delta);validateTimeline(s,library);
  const oldShots=context.window.EPISODES[0].shots.filter(s=>s.id.startsWith('T')).map(s=>({...s}));
  oldShots.find(s=>s.id==='T01').duration=6;
  oldShots.find(s=>s.id==='T01').phases=[{id:'T01',duration:3},{id:'T02',duration:3}];
@@ -53,7 +55,7 @@ test('sequence sound cues follow picture edits and legacy states still validate'
 });
 
 test('underpass extension preserves edited picture and audio and is idempotent',()=>{
- const old=structuredClone(fresh());old.shots=old.shots.slice(0,26);old.sounds=old.sounds.filter(c=>!c.id.startsWith('underpass-'));
+ const old=defaultTimeline(archive.episode);old.shots=old.shots.slice(0,26);old.sounds=old.sounds.filter(c=>!c.id.startsWith('underpass-'));
  resizeShot(old,'I04',4.25);old.sounds.find(c=>c.id==='door-slam').gain=.42;
  validateTimeline(old,library);
  const before=structuredClone(old),next=extendSequence(old,context.window.EPISODES[0]);
@@ -61,4 +63,16 @@ test('underpass extension preserves edited picture and audio and is idempotent',
  assert.equal(next.shots.length,34);assert.equal(next.sounds.find(c=>c.id==='underpass-rain-distant').start,totalDuration(old));
  assert.deepEqual(extendSequence(next,context.window.EPISODES[0]),next);validateTimeline(next,library);
  const bad=structuredClone(old);bad.shots[0].id='U99';assert.throws(()=>extendSequence(bad,context.window.EPISODES[0]));
+});
+
+test('short edit omits repeats, retains legacy edits and anchors cues after the ellipses',()=>{
+ const s=fresh();assert.equal(totalDuration(s),55.1);assert.equal(s.shots.length,30);validateTimeline(s,library);
+ assert.equal(s.shots.filter(s=>['I07','I09','U02','U03'].includes(s.id)).length,0);
+ assert.equal(s.shots.find(s=>s.id==='T03').duration,1.5);
+ assert.equal(s.sounds.find(s=>s.id==='to-stairs').start,shotStart(s,'U04'));
+ assert.equal(s.sounds.find(s=>s.id==='underpass-run').start+s.sounds.find(s=>s.id==='underpass-run').duration,shotStart(s,'U12'));
+ validateTimeline(archive.timeline.state,library);
+ assert.deepEqual(extendSequence(s,context.window.EPISODES[0]),structuredClone(s));
+ const bad=structuredClone(s);bad.shots[0].id='I07';assert.throws(()=>validateTimeline(bad,library));
+ const dupe=structuredClone(s);dupe.shots[1].id=dupe.shots[0].id;assert.throws(()=>validateTimeline(dupe,library));
 });

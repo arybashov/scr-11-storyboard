@@ -1,7 +1,8 @@
-import {round,defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart,extendSequence} from './server/timeline-model.mjs?v=20261108-underpass';
+import {round,defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart,extendSequence} from './server/timeline-model.mjs?v=20261110-rhythm';
 async function initTimeline(){
 const library=await fetch('server/sound-library.json?v=20261108-underpass').then(r=>{if(!r.ok)throw new Error('Библиотека звуков недоступна');return r.json();});
 const original=structuredClone(currentEpisode),defaults=defaultTimeline(original),draftKey='kino-full-sequence-timeline-v2';
+original.shots.push(...(original.omittedShots||[]));
 let state=structuredClone(defaults),revision=0,dirty=false,selected={type:'shot',id:'I01'},history=[],future=[],zoom=55,drag=null,saving=false,remote=null,notice=null;
 const root=document.getElementById('timeline-editor');
 const sourceOf=c=>library.find(s=>s.id===c.source);
@@ -43,6 +44,7 @@ function status(text,error=false,sticky=true){if(sticky)notice={text,error};else
 function markDraft(){dirty=JSON.stringify(state)!==JSON.stringify(remote?.state||defaults);if(dirty)remember();else try{localStorage.removeItem(draftKey);}catch{}}
 function remember(){try{localStorage.setItem(draftKey,JSON.stringify({revision,state}));}catch{status('Не удалось сохранить черновик в браузере',true);}}
 function apply(){
+ currentEpisode.shots=state.shots.map(saved=>structuredClone(original.shots.find(s=>s.id===saved.id)));
  for(const saved of state.shots){const s=currentEpisode.shots.find(s=>s.id===saved.id);s.duration=saved.duration;if(saved.phases)saved.phases.forEach(p=>{s.phases.find(x=>x.id===p.id).duration=p.duration;});}
  currentEpisode.duration=totalDuration(state);currentEpisode.adaptation=`${window.PILOT_BEATS.length} событий / ${state.shots.length} монтажных кадров / ${fmt(currentEpisode.duration)} с. Длительности редактируются в монтаже. Составные планы сохраняют непрерывность действия. I — салон, T — шоссе, U — переход и первая ловушка. Реплики ещё не записаны; диалоговый ритм уточним по прогону.`;
  animatic.time=Math.min(animatic.time,currentEpisode.duration);renderBoard();renderEpisodes();render();updateAnimatic(true);
