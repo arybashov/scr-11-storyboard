@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#141917">
   <meta name="description" content="Подземный переход — сценарий, эпизод с такси и рабочая раскадровка фильма SCR-11.">
   <title>Подземный переход — сценарий и раскадровка</title>
-  <link rel="stylesheet" href="styles.css?v=20261110-subjective">
-  <script src="episodes.js?v=20261110-subjective" defer></script>
-  <script src="assets.js?v=20261110-subjective" defer></script>
-  <script src="config.js?v=20261110-subjective" defer></script>
-  <script src="pilot-sketches.js?v=20261110-subjective" defer></script>
-  <script src="sequence-sketches.js?v=20261110-subjective" defer></script>
-  <script src="app.js?v=20261110-subjective" defer></script>
-  <script type="module" src="timeline.js?v=20261110-subjective"></script>
+  <link rel="stylesheet" href="styles.css?v=20261110-continuity">
+  <script src="episodes.js?v=20261110-continuity" defer></script>
+  <script src="assets.js?v=20261110-continuity" defer></script>
+  <script src="config.js?v=20261110-continuity" defer></script>
+  <script src="pilot-sketches.js?v=20261110-continuity" defer></script>
+  <script src="sequence-sketches.js?v=20261110-continuity" defer></script>
+  <script src="app.js?v=20261110-continuity" defer></script>
+  <script type="module" src="timeline.js?v=20261110-continuity"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">К содержанию</a>
@@ -108,7 +108,7 @@
   <dialog id="animatic-dialog" class="animatic-dialog" aria-labelledby="animatic-title">
     <div class="dialog-top"><span class="eyebrow" id="animatic-title">АНИМАТИК</span><button type="button" data-close="animatic-dialog" aria-label="Закрыть аниматик">✕</button></div>
     <div id="animatic-stage" class="animatic-stage"></div>
-    <div class="animatic-shot-info"><strong id="animatic-shot-title"></strong><span id="animatic-shot-size"></span></div>
+    <div class="animatic-shot-info"><strong id="animatic-shot-title"></strong><span id="animatic-shot-size"></span><button id="camera-preview" type="button" aria-pressed="false" hidden>Схема транстрава</button></div>
     <div class="player-timeline"><div class="timeline-controls"><button id="animatic-restart" aria-label="С начала">↤</button><button id="animatic-play" class="play-button" aria-label="Пауза">Ⅱ</button><span class="timeline-time" id="player-time"></span><button data-sound-toggle aria-pressed="true">Звук включён</button><label class="master-volume">Громкость <input id="sound-master-volume" type="range" min="0" max="100" value="75" aria-label="Общая громкость"></label></div><input id="player-seek" class="timeline-seek" type="range" min="0" max="20.2" step="0.05" value="0" aria-label="Перемотка аниматика"><div id="player-strip" class="timeline-strip" aria-label="Планы аниматика" hidden></div><p class="sound-status" data-sound-status role="status">Загружаю шумовую раскладку…</p><section id="timeline-editor" aria-label="Редактор монтажа"></section><p class="player-hint">Пробел — воспроизведение / пауза · ← → — предыдущий / следующий кадр</p></div>
   </dialog>
   <noscript><p class="noscript">Для интерактивного альбома нужен JavaScript. <a href="source/SCR-11-Underground-Crossing.docx">Скачать полный сценарий DOCX</a>.</p></noscript>

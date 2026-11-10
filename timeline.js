@@ -1,4 +1,4 @@
-import {round,defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart,extendSequence} from './server/timeline-model.mjs?v=20261110-subjective';
+import {round,defaultTimeline,validateTimeline,resizeShot,totalDuration,shotStart,extendSequence} from './server/timeline-model.mjs?v=20261110-continuity';
 async function initTimeline(){
 const library=await fetch('server/sound-library.json?v=20261108-underpass').then(r=>{if(!r.ok)throw new Error('Библиотека звуков недоступна');return r.json();});
 const original=structuredClone(currentEpisode),defaults=defaultTimeline(original),draftKey='kino-full-sequence-timeline-v2';

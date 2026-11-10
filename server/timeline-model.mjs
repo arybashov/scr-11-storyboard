@@ -19,7 +19,7 @@ export function defaultTimeline(episode){
       clip('rain-bed','rain',outside,round(stairs-outside),0,.8),
       clip('rain-stairs','rain',stairs,round((shots.some(s=>s.id==='U06')?at('U06'):shots.some(s=>s.id==='U07')?at('U07'):total)-stairs),0,.2),
       clip('exit-steps','steps',round(outside+.2),1.6,1,.65),
-      clip('door-slam','door',round(outside+3.65),.46,1),
+      clip('door-slam','door',round(outside+Math.max(.1,shots.find(s=>s.id==='T01').duration-.35)),.46,1),
       clip('phone-drop','phone',at('T03'),.55,1,.9),
       clip('walk-steps','steps',round(at('T05')+.6),1.4,1,.7,1.5),
       clip('horn-warning','horn-long',round(at('T07')+.65),4.15,3,.65),

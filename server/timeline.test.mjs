@@ -80,6 +80,7 @@ test('short edit omits repeats, retains legacy edits and anchors cues after the 
 test('subjective cut keeps the roadway, shortens cabin and leaves no stray footsteps during the POV',()=>{
  const s=fresh();assert.equal(totalDuration(s),37.1);assert.equal(s.shots.length,24);validateTimeline(s,library);
  assert.equal(shotStart(s,'T01'),6);assert.equal(shotStart(s,'U01'),25.5);
+ assert.equal(Math.round((s.sounds.find(c=>c.id==='door-slam').start+.35)*100)/100,shotStart(s,'T03'));
  assert.equal(s.sounds.find(c=>c.id==='underpass-run').start,shotStart(s,'U11'));
  assert.equal(s.sounds.find(c=>c.id==='rain-stairs').duration,3.2);
  assert.equal(s.sounds.some(c=>c.id==='underpass-walk'),false);

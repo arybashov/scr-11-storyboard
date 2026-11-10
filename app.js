@@ -146,14 +146,18 @@ function updateAnimatic(force=false){
   $$('.timeline-clip').forEach(button=>{const active=button.dataset.clipId===shot.id;button.classList.toggle('current',active);button.setAttribute('aria-pressed',String(active));});
   $('#animatic-play').textContent=animatic.playing?'Ⅱ':'▶';$('#animatic-play').setAttribute('aria-label',animatic.playing?'Пауза':'Воспроизвести');
   window.KinoTimeline?.update(animatic.time);
-  const key=shot.id+':'+phase.id+':'+(version?.id||'scheme');
+  if(!shot.motionPreview)animatic.showCameraScheme=false;
+  $('#camera-preview').hidden=shot.motionPreview!=='dolly-zoom';
+  $('#camera-preview').setAttribute('aria-pressed',String(!!animatic.showCameraScheme));
+  $('#camera-preview').textContent=animatic.showCameraScheme?'Вернуться к кадру':'Схема транстрава';
+  const key=shot.id+':'+phase.id+':'+(version?.id||'scheme')+':'+!!animatic.showCameraScheme;
   if(force||animatic.shown!==key){
     $('#animatic-stage').innerHTML=imageMarkup(phase,version);
     $('#animatic-shot-title').textContent=`${shot.id} / ${shot.title}${shot.phases?' · ФАЗА '+(phaseIndex+1)+'/'+shot.phases.length+' · ОДИН КАДР':''}`;
     $('#animatic-shot-size').textContent=`${phase.size} · ${shot.duration} сек${shot.phases?' · опорная фаза без склейки':''}`;
     animatic.shown=key;
   }
-  if(shot.motionPreview==='dolly-zoom'&&(!version||version.originalName?.startsWith('U07-subjective-scheme-'))){
+  if(shot.motionPreview==='dolly-zoom'&&animatic.showCameraScheme){
     $('#animatic-stage').innerHTML=subjectivePerspective((animatic.time-start)/shot.duration);
   }
 }
@@ -303,6 +307,7 @@ $('#script-search').addEventListener('input',event=>{if(screenplay)renderScript(
 $('#print-board').addEventListener('click',()=>window.print());
 $('#animatic-play').addEventListener('click',()=>{if(animatic.playing||animatic.loading)pauseAnimatic();else playAnimatic();});
 $('#animatic-restart').addEventListener('click',()=>seekAnimatic(0));
+$('#camera-preview').addEventListener('click',()=>{animatic.showCameraScheme=!animatic.showCameraScheme;updateAnimatic(true);});
 for(const range of [$('#dock-seek'),$('#player-seek')])range.addEventListener('input',event=>seekAnimatic(event.target.value));
 $('#animatic-dialog').addEventListener('close',pauseAnimatic);
 $('#animatic-dialog').addEventListener('keydown',event=>{
